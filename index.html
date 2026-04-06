@@ -15,6 +15,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
+      window.__APP_CONFIG__.VITE_GAS_BASE_URL = window.__APP_CONFIG__.VITE_GAS_BASE_URL || '%VITE_GAS_BASE_URL%';
+      window.__APP_CONFIG__.VITE_API_KEY = window.__APP_CONFIG__.VITE_API_KEY || '%VITE_API_KEY%';
+      // Opcional para deploy estatico (quando nao houver env de build):
+      // window.__APP_CONFIG__.VITE_GAS_BASE_URL = 'https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/exec';
+      // window.__APP_CONFIG__.VITE_API_KEY = '';
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

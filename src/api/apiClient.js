@@ -8,24 +8,73 @@ const ENTITY_ENDPOINT = {
 
 const SUBSCRIBE_POLL_MS = 5000;
 
-const runtimeImportMeta = /** @type {any} */ (import.meta);
-const BASE_URL = String(runtimeImportMeta?.env?.VITE_GAS_BASE_URL || '').trim();
-const API_KEY = String(runtimeImportMeta?.env?.VITE_API_KEY || '').trim();
-const CONFIG_ERROR = '[apiClient] VITE_GAS_BASE_URL nao configurada. Defina a variavel no .env para habilitar as chamadas da API GAS.';
+const runtimeImportMeta = /** @type {{env?: {VITE_GAS_BASE_URL?: string, VITE_API_KEY?: string}}} */ (/** @type {any} */ (import.meta));
+const viteEnv = runtimeImportMeta.env || {};
+const CONFIG_ERROR = '[apiClient] VITE_GAS_BASE_URL nao configurada. Defina no .env do build e publique novamente. Em deploy estatico, configure window.__APP_CONFIG__.VITE_GAS_BASE_URL em runtime.';
+
+const firstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (
+        trimmed &&
+        trimmed !== 'undefined' &&
+        trimmed !== 'null' &&
+        !/^%VITE_[A-Z0-9_]+%$/.test(trimmed)
+      ) {
+        return trimmed;
+      }
+    }
+  }
+  return '';
+};
+
+const getRuntimeConfigFromGlobal = () => {
+  const root = (typeof globalThis === 'object' && globalThis) ? /** @type {any} */ (globalThis) : {};
+  const appConfig = (root.__APP_CONFIG__ && typeof root.__APP_CONFIG__ === 'object') ? root.__APP_CONFIG__ : {};
+  const envConfig = (root.__ENV__ && typeof root.__ENV__ === 'object') ? root.__ENV__ : {};
+  return {
+    baseUrl: firstNonEmptyString(
+      appConfig.VITE_GAS_BASE_URL,
+      appConfig.GAS_BASE_URL,
+      envConfig.VITE_GAS_BASE_URL,
+      envConfig.GAS_BASE_URL,
+      root.VITE_GAS_BASE_URL,
+    ),
+    apiKey: firstNonEmptyString(
+      appConfig.VITE_API_KEY,
+      appConfig.API_KEY,
+      envConfig.VITE_API_KEY,
+      envConfig.API_KEY,
+      root.VITE_API_KEY,
+    ),
+  };
+};
+
+const getRuntimeConfig = () => {
+  const globalConfig = getRuntimeConfigFromGlobal();
+  return {
+    // Prioridade: env do build (Vite) -> config runtime global.
+    baseUrl: firstNonEmptyString(viteEnv.VITE_GAS_BASE_URL, globalConfig.baseUrl),
+    apiKey: firstNonEmptyString(viteEnv.VITE_API_KEY, globalConfig.apiKey),
+  };
+};
 
 const getBaseUrl = () => {
-  if (!BASE_URL) {
+  const { baseUrl } = getRuntimeConfig();
+  if (!baseUrl) {
     throw new Error(CONFIG_ERROR);
   }
-  return BASE_URL.replace(/\/+$/, '');
+  return baseUrl.replace(/\/+$/, '');
 };
 
 const buildUrl = (path, query) => {
   const url = new URL(getBaseUrl());
+  const { apiKey } = getRuntimeConfig();
   url.searchParams.set('path', path.startsWith('/') ? path : `/${path}`);
-  if (API_KEY) {
+  if (apiKey) {
     // Compatibilidade com GAS que valida chave por querystring.
-    url.searchParams.set('api_key', API_KEY);
+    url.searchParams.set('api_key', apiKey);
   }
   if (query && typeof query === 'object') {
     Object.entries(query).forEach(([key, value]) => {
@@ -39,8 +88,10 @@ const buildUrl = (path, query) => {
 const getHeaders = (hasBody = false) => {
   /** @type {Record<string, string>} */
   const headers = {};
-  if (hasBody) headers['Content-Type'] = 'application/json';
-  if (API_KEY) headers['x-api-key'] = API_KEY;
+  if (hasBody) {
+    // Evita preflight CORS em chamadas browser -> GAS.
+    headers['Content-Type'] = 'text/plain;charset=UTF-8';
+  }
   return headers;
 };
 
@@ -65,9 +116,10 @@ const extractPayload = (payload) => {
 const request = async (method, path, body, query) => {
   try {
     const payload = body && typeof body === 'object' ? { ...body } : body;
-    if (payload && typeof payload === 'object' && API_KEY && !('api_key' in payload)) {
+    const { apiKey } = getRuntimeConfig();
+    if (payload && typeof payload === 'object' && apiKey && !('api_key' in payload)) {
       // Compatibilidade com GAS que valida chave no corpo do POST.
-      payload.api_key = API_KEY;
+      payload.api_key = apiKey;
     }
     const response = await fetch(buildUrl(path, query), {
       method,
@@ -82,6 +134,11 @@ const request = async (method, path, body, query) => {
     return extractPayload(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message === 'Failed to fetch' || /networkerror/i.test(message)) {
+      throw new Error(
+        `[apiClient] ${method} ${path} falhou: Failed to fetch. Verifique CORS/preflight no GAS e se VITE_GAS_BASE_URL aponta para .../exec.`,
+      );
+    }
     throw new Error(`[apiClient] ${method} ${path} falhou: ${message}`);
   }
 };
@@ -181,10 +238,20 @@ const createEntityApi = (entityName) => {
 
     async bulkCreate(payloads = []) {
       if (!Array.isArray(payloads) || payloads.length === 0) return [];
-      return tryPostPaths(
-        [`${basePath}/bulk-create`, `${basePath}/bulk`, `${basePath}/create-many`],
-        { items: payloads },
-      );
+      try {
+        return await tryPostPaths(
+          [`${basePath}/bulk-create`, `${basePath}/bulk`, `${basePath}/create-many`],
+          { items: payloads },
+        );
+      } catch (error) {
+        // Fallback para APIs que nao expõem endpoint bulk.
+        const createdItems = [];
+        for (const payload of payloads) {
+          const created = await this.create(payload);
+          createdItems.push(created);
+        }
+        return createdItems;
+      }
     },
 
     async update(id, patch) {
@@ -229,7 +296,7 @@ const createEntityApi = (entityName) => {
 export const apiClient = {
   meta: {
     isConfigured() {
-      return Boolean(BASE_URL);
+      return Boolean(getRuntimeConfig().baseUrl);
     },
     getConfigurationError() {
       return CONFIG_ERROR;
