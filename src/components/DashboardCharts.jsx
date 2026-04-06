@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Bell, FileText, AlertTriangle, CheckCircle2, UserCheck, UserPlus, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Sparkles, UserPlus, Bell, Activity, Send, TrendingUp, Download } from 'lucide-react';
 
 function calcMetrics(eventos) {
   const byLeito = {};
@@ -13,36 +13,56 @@ function calcMetrics(eventos) {
     byLeito[e.leito_id].push(e);
   });
 
-  let altaMedicaSaida = [], altaMedicaAdmin = [], altaAdminChamadaHigiene = [], chamadaHigieneFim = [], fimHigieneEntrada = [];
+  const altaMedicaSaida = [];
+  const altaMedicaAdmin = [];
+  const altaAdminSaida = [];
+  const higiene = [];
+  const hotelaria = [];
+  const entradaFinal = [];
+  const tat = [];
+  const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
 
   Object.values(byLeito).forEach(evts => {
     evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    for (let i = 0; i < evts.length; i++) {
-      const e = evts[i];
-      
+    evts.forEach((e) => {
       if (e.tipo === 'alta_medica') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (saida) altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
-        
         const admin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
         if (admin) altaMedicaAdmin.push((new Date(admin.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      
       if (e.tipo === 'alta_administrativa') {
-        const chamadaHigiene = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (chamadaHigiene) altaAdminChamadaHigiene.push((new Date(chamadaHigiene.timestamp) - new Date(e.timestamp)) / 60000);
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      
-      if (e.tipo === 'saida_paciente') {
-        const fimHigiene = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fimHigiene) chamadaHigieneFim.push((new Date(fimHigiene.timestamp) - new Date(e.timestamp)) / 60000);
-      }
-      
-      if (e.tipo === 'fim_higiene') {
+      if (isAltaEvent(e.tipo)) {
         const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (entrada) fimHigieneEntrada.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        if (entrada) tat.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
       }
-    }
+
+      if (e.tipo === 'inicio_higiene') {
+        const fimHigiene = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHigiene) higiene.push((new Date(fimHigiene.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+
+      if (e.tipo === 'inicio_hotelaria') {
+        const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHotelaria) {
+          hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
+          if (entrada) entradaFinal.push((new Date(entrada.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+        }
+      }
+
+      // Fallback legado: quando nao existe hotelaria explicita, usa fim_higiene -> entrada_paciente.
+      if (e.tipo === 'fim_higiene') {
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (entrada) hotelaria.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        }
+      }
+    });
   });
 
   const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
@@ -50,9 +70,11 @@ function calcMetrics(eventos) {
   return {
     altaMedicaSaida: avg(altaMedicaSaida),
     altaMedicaAdmin: avg(altaMedicaAdmin),
-    altaAdminChamadaHigiene: avg(altaAdminChamadaHigiene),
-    chamadaHigieneFim: avg(chamadaHigieneFim),
-    fimHigieneEntrada: avg(fimHigieneEntrada),
+    altaAdminSaida: avg(altaAdminSaida),
+    higiene: avg(higiene),
+    hotelaria: avg(hotelaria),
+    entradaFinal: avg(entradaFinal),
+    tat: avg(tat),
     totalEventos: eventos.length,
   };
 }
@@ -61,7 +83,7 @@ function calcUnidadePerf(eventos, leitos) {
   const unidades = {};
   leitos.forEach(l => {
     if (!l.unidade) return;
-    if (!unidades[l.unidade]) unidades[l.unidade] = { higiene: [], maqueiro: [], count: 0 };
+    if (!unidades[l.unidade]) unidades[l.unidade] = { higiene: [], hotelaria: [], entradaFinal: [] };
   });
 
   const byLeito = {};
@@ -79,9 +101,20 @@ function calcUnidadePerf(eventos, leitos) {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
         if (fim) unidades[leito.unidade].higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      if (e.tipo === 'saida_paciente') {
-        const ini = evts.find(x => x.tipo === 'inicio_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ini) unidades[leito.unidade].maqueiro.push((new Date(ini.timestamp) - new Date(e.timestamp)) / 60000);
+      if (e.tipo === 'inicio_hotelaria') {
+        const fim = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fim) {
+          unidades[leito.unidade].hotelaria.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fim.timestamp));
+          if (entrada) unidades[leito.unidade].entradaFinal.push((new Date(entrada.timestamp) - new Date(fim.timestamp)) / 60000);
+        }
+      }
+      if (e.tipo === 'fim_higiene') {
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (entrada) unidades[leito.unidade].hotelaria.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        }
       }
     });
   });
@@ -91,7 +124,8 @@ function calcUnidadePerf(eventos, leitos) {
   return Object.entries(unidades).slice(0, 5).map(([nome, d]) => ({
     nome,
     higiene: avg(d.higiene),
-    maqueiro: avg(d.maqueiro),
+    hotelaria: avg(d.hotelaria),
+    entradaFinal: avg(d.entradaFinal),
   }));
 }
 
@@ -126,33 +160,45 @@ function calcHistoricalMetrics(eventos, viewType) {
         byDate[dateKey] = {
           altaMedicaSaida: [],
           altaMedicaAdmin: [],
-          altaAdminChamadaHigiene: [],
-          chamadaHigieneFim: [],
-          fimHigieneEntrada: []
+          altaAdminSaida: [],
+          higiene: [],
+          hotelaria: [],
+          entradaFinal: []
         };
       }
-      
+
       if (e.tipo === 'alta_medica') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (saida) byDate[dateKey].altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
-        
         const admin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
         if (admin) byDate[dateKey].altaMedicaAdmin.push((new Date(admin.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      
+
       if (e.tipo === 'alta_administrativa') {
-        const chamadaHigiene = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (chamadaHigiene) byDate[dateKey].altaAdminChamadaHigiene.push((new Date(chamadaHigiene.timestamp) - new Date(e.timestamp)) / 60000);
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) byDate[dateKey].altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      
-      if (e.tipo === 'saida_paciente') {
+
+      if (e.tipo === 'inicio_higiene') {
         const fimHigiene = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fimHigiene) byDate[dateKey].chamadaHigieneFim.push((new Date(fimHigiene.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fimHigiene) byDate[dateKey].higiene.push((new Date(fimHigiene.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      
+
+      if (e.tipo === 'inicio_hotelaria') {
+        const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHotelaria) {
+          byDate[dateKey].hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
+          if (entrada) byDate[dateKey].entradaFinal.push((new Date(entrada.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+        }
+      }
+
       if (e.tipo === 'fim_higiene') {
-        const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (entrada) byDate[dateKey].fimHigieneEntrada.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (entrada) byDate[dateKey].hotelaria.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        }
       }
     }
   });
@@ -174,11 +220,12 @@ function calcHistoricalMetrics(eventos, viewType) {
     return {
       date: displayDate,
       sortDate: sortDate,
-      "Alta Médica -> Saída": avg(data.altaMedicaSaida),
-    "Alta Médica -> Admin": avg(data.altaMedicaAdmin),
-    "Alta Admin -> Cham. Hig.": avg(data.altaAdminChamadaHigiene),
-    "Cham. Hig. -> Fim": avg(data.chamadaHigieneFim),
-    "Fim Hig. -> Entrada": avg(data.fimHigieneEntrada),
+      "Alta Médica → Saída Paciente": avg(data.altaMedicaSaida),
+      "Alta Médica → Alta Administrativa": avg(data.altaMedicaAdmin),
+      "Alta Administrativa → Saída Paciente": avg(data.altaAdminSaida),
+      "Higiene": avg(data.higiene),
+      "Hotelaria": avg(data.hotelaria),
+      "Entrada Final": avg(data.entradaFinal),
     };
   }).sort((a, b) => a.sortDate.localeCompare(b.sortDate));
 }
@@ -258,11 +305,13 @@ export default function DashboardCharts() {
     .slice(0, 2);
 
   const steps = [
-    { icon: UserCheck, label: 'Alta Méd. → Saída', sub: `${metrics.altaMedicaSaida || '—'} min`, color: 'bg-blue-100 text-blue-600' },
-    { icon: FileText, label: 'Alta Méd. → Admin', sub: `${metrics.altaMedicaAdmin || '—'} min`, color: 'bg-indigo-100 text-indigo-600' },
-    { icon: Bell, label: 'Alta Admin → Cham. Hig.', sub: `${metrics.altaAdminChamadaHigiene || '—'} min`, color: 'bg-orange-100 text-orange-600' },
-    { icon: Sparkles, label: 'Cham. Hig. → Fim', sub: `${metrics.chamadaHigieneFim || '—'} min`, color: 'bg-[#12B37A]/20 text-[#12B37A]' },
-    { icon: UserPlus, label: 'Fim Hig. → Entrada', sub: `${metrics.fimHigieneEntrada || '—'} min`, color: 'bg-purple-100 text-purple-600' },
+    { icon: Activity, label: 'Alta Médica → Saída Paciente', sub: `${metrics.altaMedicaSaida || '—'} min`, color: 'bg-blue-100 text-blue-600' },
+    { icon: Bell, label: 'Alta Médica → Alta Administrativa', sub: `${metrics.altaMedicaAdmin || '—'} min`, color: 'bg-indigo-100 text-indigo-600' },
+    { icon: Send, label: 'Alta Administrativa → Saída Paciente', sub: `${metrics.altaAdminSaida || '—'} min`, color: 'bg-rose-100 text-rose-600' },
+    { icon: Sparkles, label: 'Início Higiene → Término Higiene', sub: `${metrics.higiene || '—'} min`, color: 'bg-[#12B37A]/20 text-[#12B37A]' },
+    { icon: UserPlus, label: 'Início Hotelaria → Término Hotelaria', sub: `${metrics.hotelaria || '—'} min`, color: 'bg-purple-100 text-purple-600' },
+    { icon: TrendingUp, label: 'Término Hotelaria → Entrada Paciente', sub: `${metrics.entradaFinal || '—'} min`, color: 'bg-amber-100 text-amber-600' },
+    { icon: Download, label: 'Giro Total (TAT Macro)', sub: `${metrics.tat || '—'} min`, color: 'bg-slate-100 text-slate-700' },
   ];
 
   return (
@@ -325,9 +374,9 @@ export default function DashboardCharts() {
               </div>
 
               {/* Steps */}
-              <div className="grid grid-cols-5 gap-2 mb-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
                 {steps.map(({ icon: Icon, label, sub, color }) => (
-                  <div key={label} className="flex flex-col items-center text-center gap-1.5">
+                  <div key={label} className="flex flex-col items-center text-center gap-1.5 rounded-xl border border-gray-100 bg-white p-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${color}`}>
                       <Icon size={18} />
                     </div>
@@ -391,7 +440,7 @@ export default function DashboardCharts() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="font-black text-gray-800">Evolução Histórica dos Tempos Médios (Minutos)</p>
-                <p className="text-[#12B37A] text-xs">Acompanhamento dos 5 principais indicadores operacionais</p>
+                <p className="text-[#12B37A] text-xs">Acompanhamento do fluxo completo de indicadores</p>
               </div>
             </div>
             
@@ -405,22 +454,24 @@ export default function DashboardCharts() {
                   <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: '10px', fontSize: '12px', border: '1px solid #E5E7EB' }} formatter={v => [`${v} min`]} />
                   
-                  <Line type="monotone" dataKey="Alta Médica -> Saída" stroke="#3B82F6" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
-                  <Line type="monotone" dataKey="Alta Médica -> Admin" stroke="#6366F1" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
-                  <Line type="monotone" dataKey="Alta Admin -> Cham. Hig." stroke="#F97316" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
-                  <Line type="monotone" dataKey="Cham. Hig. -> Fim" stroke="#12B37A" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
-                  <Line type="monotone" dataKey="Fim Hig. -> Entrada" stroke="#A855F7" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
+                  <Line type="monotone" dataKey="Higiene" stroke="#12B37A" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line type="monotone" dataKey="Hotelaria" stroke="#A855F7" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
+                  <Line type="monotone" dataKey="Entrada Final" stroke="#F97316" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
+                  <Line type="monotone" dataKey="Alta Médica → Saída Paciente" stroke="#3B82F6" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
+                  <Line type="monotone" dataKey="Alta Médica → Alta Administrativa" stroke="#6366F1" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
+                  <Line type="monotone" dataKey="Alta Administrativa → Saída Paciente" stroke="#FB7185" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
                 </LineChart>
               </ResponsiveContainer>
             )}
             
             {/* Custom Legend */}
             <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#3B82F6]"></span><span className="text-[10px] font-bold text-gray-600">Alta Méd. → Saída</span></div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#6366F1]"></span><span className="text-[10px] font-bold text-gray-600">Alta Méd. → Admin</span></div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#F97316]"></span><span className="text-[10px] font-bold text-gray-600">Alta Admin → Cham. Hig.</span></div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#12B37A]"></span><span className="text-[10px] font-bold text-gray-600">Cham. Hig. → Fim</span></div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#A855F7]"></span><span className="text-[10px] font-bold text-gray-600">Fim Hig. → Entrada</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#12B37A]"></span><span className="text-[10px] font-bold text-gray-600">Início Higiene → Término Higiene</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#A855F7]"></span><span className="text-[10px] font-bold text-gray-600">Início Hotelaria → Término Hotelaria</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#F97316]"></span><span className="text-[10px] font-bold text-gray-600">Término Hotelaria → Entrada Paciente</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#3B82F6]"></span><span className="text-[10px] font-bold text-gray-600">Alta Médica → Saída Paciente</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#6366F1]"></span><span className="text-[10px] font-bold text-gray-600">Alta Médica → Alta Administrativa</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#FB7185]"></span><span className="text-[10px] font-bold text-gray-600">Alta Administrativa → Saída Paciente</span></div>
             </div>
           </div>
 
@@ -430,10 +481,10 @@ export default function DashboardCharts() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <p className="font-black text-gray-800">Admissão de Pacientes</p>
-                  <p className="text-[#12B37A] text-xs">Fim Higiene → Entrada Paciente</p>
+                  <p className="text-[#12B37A] text-xs">Término Hotelaria → Entrada Paciente</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-gray-800">{metrics.fimHigieneEntrada ? `${metrics.fimHigieneEntrada} min` : '—'}</p>
+                  <p className="text-2xl font-black text-gray-800">{metrics.entradaFinal ? `${metrics.entradaFinal} min` : '—'}</p>
                   <p className="text-[10px] text-red-400">-15% ↓</p>
                 </div>
               </div>
@@ -466,7 +517,7 @@ export default function DashboardCharts() {
                   <tr className="border-b border-gray-100">
                     <th className="text-left text-[10px] font-bold uppercase tracking-widest text-gray-400 pb-2">Unidade</th>
                     <th className="text-left text-[10px] font-bold uppercase tracking-widest text-[#12B37A] pb-2">Higiene</th>
-                    <th className="text-left text-[10px] font-bold uppercase tracking-widest text-orange-400 pb-2">Maqueiro</th>
+                    <th className="text-left text-[10px] font-bold uppercase tracking-widest text-purple-400 pb-2">Hotelaria</th>
                     <th className="text-left text-[10px] font-bold uppercase tracking-widest text-blue-400 pb-2">Leitos</th>
                   </tr>
                 </thead>
@@ -479,7 +530,7 @@ export default function DashboardCharts() {
                       <td className={`py-2.5 text-sm font-bold ${u.higiene > 30 ? 'text-red-500' : 'text-gray-700'}`}>
                         {u.higiene ? `${u.higiene}m` : '—'}
                       </td>
-                      <td className="py-2.5 text-sm text-gray-600">{u.maqueiro ? `${u.maqueiro}m` : '—'}</td>
+                      <td className="py-2.5 text-sm text-gray-600">{u.hotelaria ? `${u.hotelaria}m` : '—'}</td>
                       <td className="py-2.5 text-sm text-gray-600">{leitos.filter(l => l.unidade === u.nome && l.ativo).length}</td>
                     </tr>
                   ))}

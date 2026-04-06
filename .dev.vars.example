@@ -1,0 +1,8 @@
+# Local secrets for `wrangler pages dev`.
+# Copy this file to `.dev.vars` and fill with real values.
+
+AUTH_TOKEN_SECRET=REPLACE_WITH_A_STRONG_SECRET
+# Optional fixed credentials for /api/auth.
+# If omitted, /api/auth accepts any non-empty email/password in local dev.
+AUTH_LOGIN_EMAIL=admin@example.com
+AUTH_LOGIN_PASSWORD=change-me

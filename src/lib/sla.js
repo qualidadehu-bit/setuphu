@@ -1,8 +1,7 @@
 export const DEFAULT_METAS = { 
   desocupacao: 30, 
-  respostaHigiene: 15, 
-  execucaoHigiene: 45, 
-  transporte: 20,
+  higiene: 45, 
+  hotelaria: 20,
   tat: 100
 };
 
@@ -17,9 +16,8 @@ export const getMetas = () => {
 
 export const getMetaForStatus = (status, metas) => {
   if (['alta_registrada', 'alta_medica_registrada', 'alta_administrativa_registrada'].includes(status)) return metas.desocupacao;
-  if (status === 'aguardando_higiene') return metas.respostaHigiene;
-  if (status === 'em_higiene') return metas.execucaoHigiene;
-  if (status === 'livre' || status === 'em_transporte') return metas.transporte;
+  if (status === 'em_higiene') return metas.higiene;
+  if (status === 'livre' || status === 'em_transporte') return metas.hotelaria;
   return null;
 };
 

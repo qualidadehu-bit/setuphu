@@ -183,9 +183,8 @@ export default function GestorConfiguracoes() {
 
   const ETAPAS_METAS = [
     { key: 'desocupacao', label: 'DESOCUPAÇÃO', desc: 'Tempo desde a alta até a sinalização de leito livre.' },
-    { key: 'respostaHigiene', label: 'RESPOSTA DA HIGIENE', desc: 'Tempo máximo para a equipe aceitar o chamado de limpeza.' },
-    { key: 'execucaoHigiene', label: 'EXECUÇÃO DA HIGIENE', desc: 'Tempo estimado para limpeza terminal padrão.' },
-    { key: 'transporte', label: 'TRANSPORTE', desc: 'Tempo para deslocamento do paciente ao leito.' },
+    { key: 'higiene', label: 'INÍCIO HIGIENE → TÉRMINO HIGIENE', desc: 'Tempo da execução da higienização (inicio_higiene até fim_higiene).' },
+    { key: 'hotelaria', label: 'INÍCIO HOTELARIA → TÉRMINO HOTELARIA', desc: 'Tempo da execução da hotelaria (inicio_hotelaria até fim_hotelaria).' },
     { key: 'tat', label: 'GIRO TOTAL (TAT MACRO)', desc: 'Tempo total do giro de leito (da alta à entrada).' },
   ];
 

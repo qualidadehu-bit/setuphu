@@ -23,4 +23,6 @@ Crie um arquivo `.env` (ou configure no provedor de deploy) com:
 - O frontend está integrado via HTTP com a API GAS (Google Apps Script).
 - As chamadas usam `fetch` com resposta esperada no formato `{ ok, data, error, ts }`.
 - O build de produção gera os arquivos otimizados na pasta `dist/`.
+- Há um exemplo backend em `gas/Code.gs` com rotas de `leitos` compatíveis com o frontend.
+- No Apps Script, configure `SPREADSHEET_ID` e `API_KEY` em Script Properties.
 # setuphu

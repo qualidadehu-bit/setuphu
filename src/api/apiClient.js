@@ -197,6 +197,54 @@ const tryPostPaths = async (paths, body) => {
   throw lastError || new Error('Nenhuma rota de escrita disponivel na API.');
 };
 
+const toUtf8Bytes = (value) => {
+  try {
+    return new TextEncoder().encode(String(value || ''));
+  } catch {
+    return null;
+  }
+};
+
+const toHexString = (arrayBuffer) =>
+  Array.from(new Uint8Array(arrayBuffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+const sha256Hex = async (value) => {
+  if (!(globalThis.crypto && globalThis.crypto.subtle)) {
+    throw new Error('Web Crypto API indisponivel no ambiente atual.');
+  }
+  const bytes = toUtf8Bytes(value);
+  if (!bytes) {
+    throw new Error('Falha ao codificar senha para hash.');
+  }
+  const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return toHexString(hashBuffer);
+};
+
+const senhaAuthFallback = async (payload = {}) => {
+  const action = String(payload.action || '').trim().toLowerCase();
+  if (!action) return null;
+
+  if (action === 'hash') {
+    if (!payload.senha) {
+      throw new Error('Senha obrigatoria para gerar hash.');
+    }
+    const hash = await sha256Hex(payload.senha);
+    return { hash };
+  }
+
+  if (action === 'verify') {
+    if (!payload.senha || !payload.hash) {
+      return { valido: false };
+    }
+    const computed = await sha256Hex(payload.senha);
+    return { valido: computed === String(payload.hash) };
+  }
+
+  return null;
+};
+
 const createEntityApi = (entityName) => {
   const endpoint = ENTITY_ENDPOINT[entityName];
   const basePath = `/${endpoint}`;
@@ -317,8 +365,18 @@ export const apiClient = {
           const data = await tryPostPaths(['/senhaAuth', '/auth/senha', '/functions/invoke'], { name, ...payload });
           return { data: data || {} };
         } catch (error) {
-          console.error(error);
-          return { data: { valido: false } };
+          console.error('[apiClient] senhaAuth API indisponivel, usando fallback local.', error);
+          try {
+            const fallbackData = await senhaAuthFallback(payload);
+            if (fallbackData) return { data: fallbackData };
+          } catch (fallbackError) {
+            console.error('[apiClient] senhaAuth fallback local falhou.', fallbackError);
+          }
+          const action = String(payload?.action || '').trim().toLowerCase();
+          if (action === 'verify') {
+            return { data: { valido: false, erro: 'Falha ao validar senha: API e fallback indisponiveis.' } };
+          }
+          throw new Error('Falha ao gerar hash de senha: API e fallback indisponiveis.');
         }
       }
       try {

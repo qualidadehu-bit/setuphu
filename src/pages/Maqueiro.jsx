@@ -89,8 +89,8 @@ export default function Maqueiro() {
   const ocupadosCount   = leitosFiltrados.filter(l => ['ocupado', 'alta_registrada', 'alta_medica_registrada', 'alta_administrativa_registrada'].includes(l.status)).length;
   const pct = total > 0 ? Math.round((ocupadosCount / total) * 100) : 0;
   
-  // Maqueiro sees ocupado (to start exit transport), em_transporte, livre (to start entry transport), and any altas.
-  const monitoramento = leitosFiltrados.filter(l => ['ocupado', 'alta_registrada', 'alta_medica_registrada', 'alta_administrativa_registrada', 'livre', 'em_transporte'].includes(l.status));
+  // Maqueiro acompanha o fluxo de transporte/hotelaria até a entrada do paciente.
+  const monitoramento = leitosFiltrados.filter(l => ['ocupado', 'alta_registrada', 'alta_medica_registrada', 'alta_administrativa_registrada', 'livre', 'em_transporte', 'aguardando_paciente'].includes(l.status));
 
   const sortedMonitoramento = [...monitoramento].sort((a, b) => {
     // Função auxiliar para extrair o valor numérico de strings (ex: "201A" -> 201)
@@ -244,28 +244,29 @@ export default function Maqueiro() {
                       )}
 
                       {l.status === 'livre' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setPopup({ leito: l, tipo: 'iniciar_transporte' })}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-cyan-600 hover:bg-cyan-700 transition-all shadow-sm"
-                          >
-                            Iniciar Transp. Entrada
-                          </button>
-                          <button
-                            onClick={() => setPopup({ leito: l, tipo: 'entrada' })}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm"
-                          >
-                            Conf. Entrada
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setPopup({ leito: l, tipo: 'inicio_hotelaria' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-cyan-600 hover:bg-cyan-700 transition-all shadow-sm"
+                        >
+                          Iniciar Hotelaria
+                        </button>
                       )}
 
                       {l.status === 'em_transporte' && (
                         <button
-                          onClick={() => setPopup({ leito: l, tipo: 'fim_transporte' })}
+                          onClick={() => setPopup({ leito: l, tipo: 'fim_hotelaria' })}
                           className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm"
                         >
-                          Chegou ao Destino
+                          Finalizar Hotelaria
+                        </button>
+                      )}
+
+                      {l.status === 'aguardando_paciente' && (
+                        <button
+                          onClick={() => setPopup({ leito: l, tipo: 'entrada' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm"
+                        >
+                          Conf. Entrada
                         </button>
                       )}
                     </div>
@@ -281,21 +282,31 @@ export default function Maqueiro() {
         open={!!popup}
         onClose={() => setPopup(null)}
         title={
+          popup?.tipo === 'inicio_hotelaria' ? 'Iniciar Hotelaria' :
+          popup?.tipo === 'fim_hotelaria' ? 'Finalizar Hotelaria' :
+          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           popup?.tipo === 'iniciar_transporte' ? 'Iniciar Transporte' :
-          popup?.tipo === 'entrada' ? 'Confirmar Entrada' : 'Finalizar Transporte'
+          'Finalizar Transporte'
         }
         message={
-          popup?.tipo === 'iniciar_transporte' ? `Iniciar transporte do paciente para o Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'inicio_hotelaria' ? `Iniciar hotelaria do Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'fim_hotelaria' ? `Finalizar hotelaria do Leito ${popup?.leito?.numero}?` :
           popup?.tipo === 'entrada' ? `Confirmar chegada do paciente ao Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'iniciar_transporte' ? `Iniciar transporte do paciente para o Leito ${popup?.leito?.numero}?` :
           `Confirmar que o paciente chegou ao destino no Leito ${popup?.leito?.numero}?`
         }
         confirmLabel={
+          popup?.tipo === 'inicio_hotelaria' ? 'Iniciar' :
+          popup?.tipo === 'fim_hotelaria' ? 'Finalizar' :
+          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           popup?.tipo === 'iniciar_transporte' ? 'Iniciar' :
-          popup?.tipo === 'entrada' ? 'Confirmar Entrada' : 'Finalizar'
+          'Finalizar'
         }
         onConfirm={() => {
-          if (popup.tipo === 'iniciar_transporte') registrarEvento(popup.leito, 'inicio_transporte', 'em_transporte');
+          if (popup.tipo === 'inicio_hotelaria') registrarEvento(popup.leito, 'inicio_hotelaria', 'em_transporte');
+          else if (popup.tipo === 'fim_hotelaria') registrarEvento(popup.leito, 'fim_hotelaria', 'aguardando_paciente');
           else if (popup.tipo === 'entrada') registrarEvento(popup.leito, 'entrada_paciente', 'ocupado');
+          else if (popup.tipo === 'iniciar_transporte') registrarEvento(popup.leito, 'inicio_transporte', 'em_transporte');
           else registrarEvento(popup.leito, 'fim_transporte', null); // Transport end leaves the status up to other processes (like hygiene)
           setPopup(null);
         }}

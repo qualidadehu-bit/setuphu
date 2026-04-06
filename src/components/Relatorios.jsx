@@ -3,7 +3,7 @@ import { apiClient } from '@/api/apiClient';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { FileText, Download, TrendingDown, Activity, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, TrendingDown, Activity, Bell, Send, Sparkles, UserPlus, TrendingUp } from 'lucide-react';
 import { getMetas } from '@/lib/sla';
 
 function calcularMetricas(eventos, leitos, metas) {
@@ -13,36 +13,55 @@ function calcularMetricas(eventos, leitos, metas) {
     byLeito[e.leito_id].push(e);
   });
 
-  const desocupacao = [], respostaHigiene = [], execucaoHigiene = [], transporte = [], tat = [];
+  const desocupacao = [], altaMedicaSaida = [], altaMedicaAdmin = [], altaAdminSaida = [], higiene = [], hotelaria = [], entradaFinal = [], tat = [];
   let higienizacoesDentroMeta = 0, totalHigienizacoes = 0;
+  const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
 
   Object.values(byLeito).forEach(evts => {
     evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     for (let i = 0; i < evts.length; i++) {
       const e = evts[i];
-      if (e.tipo === 'alta') {
+      if (e.tipo === 'alta_medica') {
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        const admin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (admin) altaMedicaAdmin.push((new Date(admin.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (e.tipo === 'alta_administrativa') {
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (isAltaEvent(e.tipo)) {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (saida) desocupacao.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
         
         const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (entrada) tat.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      if (e.tipo === 'saida_paciente') {
-        const ini = evts.find(x => x.tipo === 'inicio_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ini) respostaHigiene.push((new Date(ini.timestamp) - new Date(e.timestamp)) / 60000);
-      }
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
         if (fim) {
           const tempo = (new Date(fim.timestamp) - new Date(e.timestamp)) / 60000;
-          execucaoHigiene.push(tempo);
+          higiene.push(tempo);
           totalHigienizacoes++;
-          if (tempo <= metas.execucaoHigiene) higienizacoesDentroMeta++;
+          if (tempo <= metas.higiene) higienizacoesDentroMeta++;
         }
       }
+      if (e.tipo === 'inicio_hotelaria') {
+        const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHotelaria) {
+          hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
+          if (entrada) entradaFinal.push((new Date(entrada.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+        }
+      }
+      // Fallback legado (sem inicio/fim hotelaria explícitos).
       if (e.tipo === 'fim_higiene') {
-        const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (entrada) transporte.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (entrada) hotelaria.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        }
       }
     }
   });
@@ -54,9 +73,12 @@ function calcularMetricas(eventos, leitos, metas) {
 
   return {
     desocupacao: avg(desocupacao),
-    respostaHigiene: avg(respostaHigiene),
-    execucaoHigiene: avg(execucaoHigiene),
-    transporte: avg(transporte),
+    altaMedicaSaida: avg(altaMedicaSaida),
+    altaMedicaAdmin: avg(altaMedicaAdmin),
+    altaAdminSaida: avg(altaAdminSaida),
+    higiene: avg(higiene),
+    hotelaria: avg(hotelaria),
+    entradaFinal: avg(entradaFinal),
     tat: avg(tat),
     taxaConformidade,
     taxaBloqueio,
@@ -68,7 +90,7 @@ function calcUnidadePerf(eventos, leitos) {
   const unidades = {};
   leitos.forEach(l => {
     if (!l.unidade) return;
-    if (!unidades[l.unidade]) unidades[l.unidade] = { desocupacao: [], respHig: [], execHig: [], transp: [], tat: [] };
+    if (!unidades[l.unidade]) unidades[l.unidade] = { desocupacao: [], higiene: [], hotelaria: [], entradaFinal: [], tat: [] };
   });
 
   const byLeito = {};
@@ -82,24 +104,32 @@ function calcUnidadePerf(eventos, leitos) {
     if (!leito?.unidade || !unidades[leito.unidade]) return;
     evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     const u = unidades[leito.unidade];
-    evts.forEach((e, i) => {
-      if (e.tipo === 'alta') {
+    const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
+    evts.forEach((e) => {
+      if (isAltaEvent(e.tipo)) {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (saida) u.desocupacao.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
         const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (entrada) u.tat.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      if (e.tipo === 'saida_paciente') {
-        const ini = evts.find(x => x.tipo === 'inicio_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ini) u.respHig.push((new Date(ini.timestamp) - new Date(e.timestamp)) / 60000);
-      }
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fim) u.execHig.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fim) u.higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (e.tipo === 'inicio_hotelaria') {
+        const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHotelaria) {
+          u.hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
+          if (ent) u.entradaFinal.push((new Date(ent.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+        }
       }
       if (e.tipo === 'fim_higiene') {
-        const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ent) u.transp.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (ent) u.hotelaria.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+        }
       }
     });
   });
@@ -109,18 +139,18 @@ function calcUnidadePerf(eventos, leitos) {
   return Object.entries(unidades).map(([nome, d]) => ({
     nome,
     desocupacao: avg(d.desocupacao),
-    respHig: avg(d.respHig),
-    execHig: avg(d.execHig),
-    transp: avg(d.transp),
+    higiene: avg(d.higiene),
+    hotelaria: avg(d.hotelaria),
+    entradaFinal: avg(d.entradaFinal),
     tat: avg(d.tat),
-  })).filter(u => u.tat !== null || u.execHig !== null);
+  })).filter(u => u.tat !== null || u.higiene !== null || u.hotelaria !== null || u.entradaFinal !== null);
 }
 
 function calcTendencia(eventos) {
   const dias = {};
   eventos.forEach(e => {
     const dia = new Date(e.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    if (!dias[dia]) dias[dia] = { desocupacao: [], respHig: [], execHig: [], transp: [] };
+    if (!dias[dia]) dias[dia] = { desocupacao: [], altaMedicaSaida: [], altaMedicaAdmin: [], altaAdminSaida: [], higiene: [], hotelaria: [], entradaFinal: [] };
   });
 
   const byLeito = {};
@@ -131,24 +161,42 @@ function calcTendencia(eventos) {
 
   Object.values(byLeito).forEach(evts => {
     evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
     evts.forEach(e => {
       const dia = new Date(e.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       if (!dias[dia]) return;
-      if (e.tipo === 'alta') {
+      if (e.tipo === 'alta_medica') {
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) dias[dia].altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        const admin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (admin) dias[dia].altaMedicaAdmin.push((new Date(admin.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (e.tipo === 'alta_administrativa') {
+        const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (saida) dias[dia].altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (isAltaEvent(e.tipo)) {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
         if (saida) dias[dia].desocupacao.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
       }
-      if (e.tipo === 'saida_paciente') {
-        const ini = evts.find(x => x.tipo === 'inicio_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ini) dias[dia].respHig.push((new Date(ini.timestamp) - new Date(e.timestamp)) / 60000);
-      }
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fim) dias[dia].execHig.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fim) dias[dia].higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+      }
+      if (e.tipo === 'inicio_hotelaria') {
+        const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (fimHotelaria) {
+          dias[dia].hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
+          if (ent) dias[dia].entradaFinal.push((new Date(ent.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+        }
       }
       if (e.tipo === 'fim_higiene') {
-        const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ent) dias[dia].transp.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+        const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
+        if (!inicioHotelaria) {
+          const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
+          if (ent) dias[dia].hotelaria.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+        }
       }
     });
   });
@@ -158,27 +206,24 @@ function calcTendencia(eventos) {
   return Object.entries(dias).slice(-14).map(([dia, d]) => ({
     dia,
     'Desocupação': avg(d.desocupacao),
-    'Resp. Higiene': avg(d.respHig),
-    'Execução': avg(d.execHig),
-    'Transporte': avg(d.transp),
+    'Alta Médica → Saída Paciente': avg(d.altaMedicaSaida),
+    'Alta Médica → Alta Administrativa': avg(d.altaMedicaAdmin),
+    'Alta Administrativa → Saída Paciente': avg(d.altaAdminSaida),
+    'Início Higiene → Término Higiene': avg(d.higiene),
+    'Início Hotelaria → Término Hotelaria': avg(d.hotelaria),
+    'Término Hotelaria → Entrada Paciente': avg(d.entradaFinal),
   }));
 }
 
-function MetricCard({ label, value, meta, unit = 'min' }) {
-  const ok = value !== null && meta ? value <= meta : null;
+function StepCard({ icon: Icon, label, value, color }) {
+  const display = value !== null && value !== undefined ? `${value} min` : '— min';
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{label}</p>
-      <p className={`text-3xl font-black ${ok === false ? 'text-red-600' : ok === true ? 'text-[#183D2A]' : 'text-gray-400'}`}>
-        {value !== null ? `${value}` : '—'}
-        {value !== null && <span className="text-base font-semibold text-gray-400 ml-1">{unit}</span>}
-      </p>
-      {meta && value !== null && (
-        <div className={`flex items-center gap-1 mt-1 text-xs font-semibold ${ok ? 'text-[#12B37A]' : 'text-red-500'}`}>
-          {ok ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-          Meta: {meta}min
-        </div>
-      )}
+    <div className="flex flex-col items-center text-center gap-1.5 rounded-xl border border-gray-100 bg-white p-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${color}`}>
+        <Icon size={18} />
+      </div>
+      <p className="text-[10px] font-bold text-gray-700 leading-tight">{label}</p>
+      <p className="text-[10px] text-gray-500 font-medium">{display}</p>
     </div>
   );
 }
@@ -224,6 +269,15 @@ export default function Relatorios() {
   const membroHigiene = membros.filter(m => m.categoria === 'higiene').length;
   const mediaHigienizacoesPorMembro = membroHigiene > 0 && metricas.totalHigienizacoes > 0
     ? (metricas.totalHigienizacoes / membroHigiene).toFixed(1) : null;
+  const flowSteps = [
+    { icon: Activity, label: 'Alta Médica → Saída Paciente', value: metricas.altaMedicaSaida, color: 'bg-blue-100 text-blue-600' },
+    { icon: Bell, label: 'Alta Médica → Alta Administrativa', value: metricas.altaMedicaAdmin, color: 'bg-indigo-100 text-indigo-600' },
+    { icon: Send, label: 'Alta Administrativa → Saída Paciente', value: metricas.altaAdminSaida, color: 'bg-rose-100 text-rose-600' },
+    { icon: Sparkles, label: 'Início Higiene → Término Higiene', value: metricas.higiene, color: 'bg-[#12B37A]/20 text-[#12B37A]' },
+    { icon: UserPlus, label: 'Início Hotelaria → Término Hotelaria', value: metricas.hotelaria, color: 'bg-purple-100 text-purple-600' },
+    { icon: TrendingUp, label: 'Término Hotelaria → Entrada Paciente', value: metricas.entradaFinal, color: 'bg-amber-100 text-amber-600' },
+    { icon: Download, label: 'Giro Total (TAT Macro)', value: metricas.tat, color: 'bg-slate-100 text-slate-700' },
+  ];
 
   const gerarPDF = async () => {
     setGerandoPDF(true);
@@ -277,9 +331,12 @@ export default function Relatorios() {
     const cards = [
       ['TAT (GIRO TOTAL)', metricas.tat ? `${metricas.tat} min` : '—'],
       ['TEMPO DESOCUPAÇÃO', metricas.desocupacao ? `${metricas.desocupacao} min` : '—'],
-      ['RESPOSTA HIGIENE', metricas.respostaHigiene ? `${metricas.respostaHigiene} min` : '—'],
-      ['EXECUÇÃO HIGIENE', metricas.execucaoHigiene ? `${metricas.execucaoHigiene} min` : '—'],
-      ['RESPOSTA TRANSPORTE', metricas.transporte ? `${metricas.transporte} min` : '—'],
+      ['ALTA MÉDICA → SAÍDA PACIENTE', metricas.altaMedicaSaida ? `${metricas.altaMedicaSaida} min` : '—'],
+      ['ALTA MÉDICA → ALTA ADMINISTRATIVA', metricas.altaMedicaAdmin ? `${metricas.altaMedicaAdmin} min` : '—'],
+      ['ALTA ADMINISTRATIVA → SAÍDA PACIENTE', metricas.altaAdminSaida ? `${metricas.altaAdminSaida} min` : '—'],
+      ['INÍCIO HIGIENE → TÉRMINO HIGIENE', metricas.higiene ? `${metricas.higiene} min` : '—'],
+      ['INÍCIO HOTELARIA → TÉRMINO HOTELARIA', metricas.hotelaria ? `${metricas.hotelaria} min` : '—'],
+      ['TÉRMINO HOTELARIA → ENTRADA', metricas.entradaFinal ? `${metricas.entradaFinal} min` : '—'],
       ['TAXA CONFORMIDADE', metricas.taxaConformidade ? `${metricas.taxaConformidade}%` : '—'],
       ['TAXA DE BLOQUEIO', `${metricas.taxaBloqueio}%`],
       ['HIGIENIZAÇÕES/MEMBRO', mediaHigienizacoesPorMembro ?? '—'],
@@ -311,8 +368,8 @@ export default function Relatorios() {
     doc.line(14, y + 2, W - 14, y + 2);
     y += 8;
 
-    const headers = ['UNIDADE', 'DESOCUPAÇÃO', 'RESP. HIGIENE', 'EXEC. HIGIENE', 'RESP. TRANSP.', 'TAT FINAL'];
-    const colWs = [45, 28, 28, 28, 28, 24];
+    const headers = ['UNIDADE', 'DESOCUPAÇÃO', 'INÍCIO HIGIENE → TÉRMINO HIGIENE', 'INÍCIO HOTELARIA → TÉRMINO HOTELARIA', 'TÉRM. HOTELARIA → ENTRADA', 'TAT FINAL'];
+    const colWs = [32, 25, 44, 44, 35, 20];
     let cx = 14;
     doc.setFillColor(...verdeEscuro);
     doc.rect(14, y, W - 28, 7, 'F');
@@ -328,8 +385,14 @@ export default function Relatorios() {
     unidadePerf.forEach((u, idx) => {
       doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 248);
       doc.rect(14, y, W - 28, 7, 'F');
-      const row = [u.nome, u.desocupacao ? `${u.desocupacao} min` : '—', u.respHig ? `${u.respHig} min` : '—',
-        u.execHig ? `${u.execHig} min` : '—', u.transp ? `${u.transp} min` : '—', u.tat ? `${u.tat} min` : '—'];
+      const row = [
+        u.nome,
+        u.desocupacao ? `${u.desocupacao} min` : '—',
+        u.higiene ? `${u.higiene} min` : '—',
+        u.hotelaria ? `${u.hotelaria} min` : '—',
+        u.entradaFinal ? `${u.entradaFinal} min` : '—',
+        u.tat ? `${u.tat} min` : '—',
+      ];
       let rx = 14;
       row.forEach((val, i) => {
         const excedeu = i === 5 && u.tat && u.tat > 100;
@@ -358,8 +421,15 @@ export default function Relatorios() {
     if (tendencia.length > 1) {
       const chartW = W - 28 - 10, chartH = 30;
       const chartX = 14 + 5, chartY = y + 5;
-      const colors = [[18, 179, 122], [24, 61, 42], [255, 165, 0], [100, 100, 200]];
-      const keys = ['Desocupação', 'Resp. Higiene', 'Execução', 'Transporte'];
+      const colors = [[59, 130, 246], [99, 102, 241], [251, 113, 133], [18, 179, 122], [139, 92, 246], [245, 158, 11]];
+      const keys = [
+        'Alta Médica → Saída Paciente',
+        'Alta Médica → Alta Administrativa',
+        'Alta Administrativa → Saída Paciente',
+        'Início Higiene → Término Higiene',
+        'Início Hotelaria → Término Hotelaria',
+        'Término Hotelaria → Entrada Paciente'
+      ];
       keys.forEach((key, ki) => {
         const vals = tendencia.map(d => d[key]).filter(v => v !== null);
         if (vals.length < 2) return;
@@ -379,10 +449,10 @@ export default function Relatorios() {
       // Legenda
       keys.forEach((key, ki) => {
         doc.setFillColor(...colors[ki]);
-        doc.rect(chartX + ki * 38, y + 37, 5, 2, 'F');
+        doc.rect(chartX + (ki % 3) * 64, y + 35 + Math.floor(ki / 3) * 4, 5, 2, 'F');
         doc.setTextColor(...colors[ki]);
         doc.setFontSize(6);
-        doc.text(key, chartX + ki * 38 + 7, y + 39);
+        doc.text(key, chartX + (ki % 3) * 64 + 7, y + 37 + Math.floor(ki / 3) * 4);
       });
     } else {
       doc.text('Dados históricos insuficientes para gerar o gráfico.', 14 + (W - 28) / 2, y + 22, { align: 'center' });
@@ -446,14 +516,12 @@ export default function Relatorios() {
           <Activity size={16} className="text-[#12B37A]" />
           <h3 className="font-black text-gray-700 text-sm uppercase tracking-wider">Sumário de Performance</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-          <MetricCard label="TAT (Giro Total)" value={metricas.tat} meta={null} />
-          <MetricCard label="Tempo de Desocupação" value={metricas.desocupacao} meta={metas.desocupacao} />
-          <MetricCard label="Resposta Higiene" value={metricas.respostaHigiene} meta={metas.respostaHigiene} />
-          <MetricCard label="Execução Higiene" value={metricas.execucaoHigiene} meta={metas.execucaoHigiene} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
+          {flowSteps.map((step) => (
+            <StepCard key={step.label} icon={step.icon} label={step.label} value={step.value} color={step.color} />
+          ))}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MetricCard label="Resposta Transporte" value={metricas.transporte} meta={metas.transporte} />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Taxa de Conformidade</p>
             <p className={`text-3xl font-black ${metricas.taxaConformidade >= 80 ? 'text-[#12B37A]' : 'text-orange-500'}`}>
@@ -488,7 +556,7 @@ export default function Relatorios() {
           <table className="w-full">
             <thead className="bg-[#183D2A]">
               <tr>
-                {['Unidade', 'Desocupação', 'Resp. Higiene', 'Exec. Higiene', 'Resp. Transp.', 'TAT Final'].map(h => (
+                {['Unidade', 'Desocupação', 'Início Higiene → Término Higiene', 'Início Hotelaria → Término Hotelaria', 'Término Hotelaria → Entrada Paciente', 'TAT Final'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-white">{h}</th>
                 ))}
               </tr>
@@ -500,9 +568,9 @@ export default function Relatorios() {
                   <tr key={u.nome} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                     <td className="px-4 py-3 font-bold text-[#12B37A] text-sm">{u.nome}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{u.desocupacao ? `${u.desocupacao} min` : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{u.respHig ? `${u.respHig} min` : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{u.execHig ? `${u.execHig} min` : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{u.transp ? `${u.transp} min` : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{u.higiene ? `${u.higiene} min` : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{u.hotelaria ? `${u.hotelaria} min` : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{u.entradaFinal ? `${u.entradaFinal} min` : '—'}</td>
                     <td className={`px-4 py-3 text-sm font-black ${tatExcedeu ? 'text-red-600' : 'text-[#183D2A]'}`}>
                       {u.tat ? `${u.tat} min` : '—'}
                     </td>
@@ -531,9 +599,12 @@ export default function Relatorios() {
               <Tooltip contentStyle={{ borderRadius: '10px', fontSize: '12px', border: '1px solid #E5E7EB' }} formatter={v => [`${v} min`]} />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
               <Line type="monotone" dataKey="Desocupação" stroke="#12B37A" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Resp. Higiene" stroke="#183D2A" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Execução" stroke="#F59E0B" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Transporte" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Alta Médica → Saída Paciente" stroke="#3B82F6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Alta Médica → Alta Administrativa" stroke="#6366F1" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Alta Administrativa → Saída Paciente" stroke="#FB7185" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Início Higiene → Término Higiene" stroke="#183D2A" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Início Hotelaria → Término Hotelaria" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Término Hotelaria → Entrada Paciente" stroke="#F59E0B" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         )}
