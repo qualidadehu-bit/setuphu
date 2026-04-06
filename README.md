@@ -11,9 +11,16 @@ Aplicação frontend para gestão visual do fluxo de leitos hospitalares.
 3. Gere build de produção:
    - `npm run build`
 
+## Variáveis de ambiente
+
+Crie um arquivo `.env` (ou configure no provedor de deploy) com:
+
+- `VITE_GAS_BASE_URL`: URL base do Web App GAS (endpoint `/exec`)
+- `VITE_API_KEY`: chave enviada no header `x-api-key`
+
 ## Observações
 
-- O projeto está configurado para funcionar com uma camada de dados mockada em memória.
-- A UI e os fluxos operacionais continuam ativos sem dependência de backend externo.
-- Essa base está preparada para futura integração com uma nova API/banco de dados.
+- O frontend está integrado via HTTP com a API GAS (Google Apps Script).
+- As chamadas usam `fetch` com resposta esperada no formato `{ ok, data, error, ts }`.
+- O build de produção gera os arquivos otimizados na pasta `dist/`.
 # setuphu
