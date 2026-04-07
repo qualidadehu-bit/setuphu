@@ -27,7 +27,7 @@ type BedSignal = 'PR' | 'MR' | 'CR' | 'DR' | 'CP' | 'SS';
 const BED_CARDS = [
   { id: 'A1', status: 'Pronto para alta' },
   { id: 'B2', status: 'Aguardando transporte' },
-  { id: 'C3', status: 'Em observacao' },
+  { id: 'C3', status: 'Em observação' },
 ];
 
 export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
@@ -55,7 +55,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
 
   const handleSave = async () => {
     if (!canSave) {
-      Alert.alert('Validacao', 'Informe ao menos o nome do formulario.');
+      Alert.alert('Validação', 'Informe ao menos o nome do formulário.');
       return;
     }
 
@@ -70,7 +70,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
       Alert.alert(
         'Sucesso',
         isOnline
-          ? 'Formulario salvo e sincronizacao disparada.'
+          ? 'Formulario salvo e sincronização disparada.'
           : 'Formulario salvo offline e adicionado a fila.',
       );
     } catch (error) {
@@ -135,17 +135,17 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
     }
 
     if (pendingAction.action === 'alta-medica') {
-      return `Confirmar alta medica para o Leito ${pendingAction.bedId}?`;
+      return `Confirmar alta médica para o Leito ${pendingAction.bedId}?`;
     }
 
-    return `Confirmar a solicitacao de maqueiro para o Leito ${pendingAction.bedId}?`;
+    return `Confirmar a solicitação de maqueiro para o Leito ${pendingAction.bedId}?`;
   }, [pendingAction]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Checklist de Qualidade</Text>
-        <Text style={styles.subtitle}>Coleta offline-first com sincronizacao automatica</Text>
+        <Text style={styles.subtitle}>Coleta offline-first com sincronização automatica</Text>
         {onLogout ? (
           <View style={styles.logoutButton}>
             <Button title="Sair" color="#475569" onPress={onLogout} />
@@ -155,8 +155,8 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
         <OnlineStatusHeader isOnline={isOnline} pendingCount={pendingCount} isSyncing={isSyncing} />
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Gestao de Leitos</Text>
-          <Text style={styles.sectionSubtitle}>Acoes rapidas com confirmacao para evitar toques acidentais</Text>
+          <Text style={styles.sectionTitle}>Gestão de Leitos</Text>
+          <Text style={styles.sectionSubtitle}>Ações rápidas com confirmação para evitar toques acidentais</Text>
           {BED_CARDS.map((bed) => (
             <View key={bed.id} style={styles.bedCard}>
               <View style={styles.bedHeader}>
@@ -168,8 +168,8 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                 <View style={styles.kebabWrapper}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Abrir menu de acoes do Leito ${bed.id}`}
-                    accessibilityHint="Toque para visualizar acoes rapidas do leito"
+                    accessibilityLabel={`Abrir menu de ações do Leito ${bed.id}`}
+                    accessibilityHint="Toque para visualizar ações rápidas do leito"
                     hitSlop={10}
                     style={styles.kebabButton}
                     onPress={() =>
@@ -184,19 +184,19 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                       <View style={styles.menuPanel}>
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`Sinalizacoes do Leito ${bed.id}`}
+                          accessibilityLabel={`Sinalizações do Leito ${bed.id}`}
                           style={styles.menuItem}
                           onPress={() => openSignalModal(bed.id)}
                         >
-                          <Text style={styles.menuItemText}>⚑ Sinalizacoes</Text>
+                          <Text style={styles.menuItemText}>🏷️ Sinalizações</Text>
                         </Pressable>
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`Alta medica para o Leito ${bed.id}`}
+                          accessibilityLabel={`Alta médica para o Leito ${bed.id}`}
                           style={styles.menuItem}
                           onPress={() => openActionConfirmation(bed.id, 'alta-medica')}
                         >
-                          <Text style={styles.menuItemText}>🩺 Alta Medica</Text>
+                          <Text style={styles.menuItemText}>🩺 Alta Médica</Text>
                         </Pressable>
                         <Pressable
                           accessibilityRole="button"
@@ -223,7 +223,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Nome do formulario</Text>
+          <Text style={styles.label}>Nome do formulário</Text>
           <TextInput
             style={styles.input}
             placeholder="Ex: Inspecao turno manha"
@@ -248,7 +248,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
           </View>
 
           <View style={styles.buttonWrapper}>
-            <Button title="Salvar formulario" onPress={handleSave} disabled={!canSave || isSyncing} />
+            <Button title="Salvar formulário" onPress={handleSave} disabled={!canSave || isSyncing} />
           </View>
 
           <View style={styles.buttonWrapper}>
@@ -256,7 +256,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
           </View>
         </View>
 
-        {lastError ? <Text style={styles.errorText}>Ultima falha: {lastError}</Text> : null}
+        {lastError ? <Text style={styles.errorText}>Última falha: {lastError}</Text> : null}
       </ScrollView>
 
       <Modal
@@ -267,7 +267,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
       >
         <Pressable style={styles.modalOverlay} onPress={closeConfirmation}>
           <Pressable style={styles.modalContent} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.modalTitle}>Confirmacao de Acao</Text>
+            <Text style={styles.modalTitle}>Confirmação de Ação</Text>
             <Text style={styles.modalText}>{confirmationMessage}</Text>
 
             <View style={styles.modalButtons}>
@@ -290,7 +290,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
       >
         <Pressable style={styles.modalOverlay} onPress={closeSignalModal}>
           <Pressable style={styles.modalContent} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.modalTitle}>Sinalizacoes do Leito {signalModalBedId}</Text>
+            <Text style={styles.modalTitle}>Sinalizações do Leito {signalModalBedId}</Text>
             <Text style={styles.modalText}>Selecione uma ou mais categorias de risco/perfil:</Text>
 
             <Text style={styles.signalGroupTitle}>Grupo A - Perfil/Complexidade</Text>
@@ -301,7 +301,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                   <Pressable
                     key={signal}
                     accessibilityRole="button"
-                    accessibilityLabel={`Alternar sinalizacao ${signal}`}
+                    accessibilityLabel={`Alternar sinalização ${signal}`}
                     style={[styles.signalChip, selected ? styles.signalChipSelected : styles.signalChipDefault]}
                     onPress={() => toggleDraftSignal(signal)}
                   >
@@ -318,7 +318,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
               })}
             </View>
 
-            <Text style={styles.signalGroupTitle}>Grupo B - Riscos/Sinalizacoes</Text>
+            <Text style={styles.signalGroupTitle}>Grupo B - Riscos/Sinalizações</Text>
             <View style={styles.signalChipsWrap}>
               {(['DR', 'CP', 'SS'] as BedSignal[]).map((signal) => {
                 const selected = draftSignals.includes(signal);
@@ -326,7 +326,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                   <Pressable
                     key={signal}
                     accessibilityRole="button"
-                    accessibilityLabel={`Alternar sinalizacao ${signal}`}
+                    accessibilityLabel={`Alternar sinalização ${signal}`}
                     style={[styles.signalChip, selected ? styles.signalChipSelected : styles.signalChipDefault]}
                     onPress={() => toggleDraftSignal(signal)}
                   >
@@ -348,7 +348,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </Pressable>
               <Pressable style={styles.confirmButton} onPress={saveSignals}>
-                <Text style={styles.confirmButtonText}>Salvar</Text>
+                <Text style={styles.confirmButtonText}>Confirmar</Text>
               </Pressable>
             </View>
           </Pressable>
