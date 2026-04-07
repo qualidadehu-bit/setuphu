@@ -22,13 +22,25 @@ interface ChecklistFormScreenProps {
 }
 
 type BedAction = 'alta-medica';
-type BedSignal = 'PR' | 'MR' | 'CR' | 'DR' | 'CP' | 'SS';
+type BedSignal = 'PR' | 'MR' | 'CR' | 'DR' | 'UCP' | 'SS';
 
 const BED_CARDS = [
   { id: 'A1', status: 'Pronto para alta' },
   { id: 'B2', status: 'Aguardando transporte' },
   { id: 'C3', status: 'Em observação' },
 ];
+
+const normalizeSignals = (signals: BedSignal[]): BedSignal[] => {
+  const normalized = signals.map((signal) => (signal === ('CP' as BedSignal) ? 'UCP' : signal));
+  return Array.from(new Set(normalized));
+};
+
+const getSignalMeaning = (signal: BedSignal): string => {
+  if (signal === 'DR') return 'Demanda Reprimida';
+  if (signal === 'UCP') return 'Cuidados Paliativos';
+  if (signal === 'SS') return 'Serviço Social';
+  return 'Isolamento';
+};
 
 export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
   const [name, setName] = useState('');
@@ -103,7 +115,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
   const openSignalModal = (bedId: string) => {
     setOpenMenuBedId(null);
     setSignalModalBedId(bedId);
-    setDraftSignals(selectedSignalsByBed[bedId] ?? []);
+    setDraftSignals(normalizeSignals(selectedSignalsByBed[bedId] ?? []));
   };
 
   const closeSignalModal = () => {
@@ -123,7 +135,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
     }
     setSelectedSignalsByBed((current) => ({
       ...current,
-      [signalModalBedId]: draftSignals,
+      [signalModalBedId]: normalizeSignals(draftSignals),
     }));
     setSignalModalBedId(null);
     setDraftSignals([]);
@@ -286,7 +298,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
             <Text style={styles.modalTitle}>Sinalizações do Leito {signalModalBedId}</Text>
             <Text style={styles.modalText}>Selecione uma ou mais categorias de risco/perfil:</Text>
 
-            <Text style={styles.signalGroupTitle}>Complexidade</Text>
+            <Text style={styles.signalGroupTitle}>Isolamento</Text>
             <View style={styles.signalChipsWrap}>
               {(['PR', 'MR', 'CR'] as BedSignal[]).map((signal) => {
                 const selected = draftSignals.includes(signal);
@@ -294,7 +306,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                   <Pressable
                     key={signal}
                     accessibilityRole="button"
-                    accessibilityLabel={`Alternar sinalização ${signal}`}
+                    accessibilityLabel={`Alternar sinalização ${signal} - ${getSignalMeaning(signal)}`}
                     style={[styles.signalChip, selected ? styles.signalChipSelected : styles.signalChipDefault]}
                     onPress={() => toggleDraftSignal(signal)}
                   >
@@ -311,15 +323,15 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
               })}
             </View>
 
-            <Text style={styles.signalGroupTitle}>Riscos</Text>
+            <Text style={styles.signalGroupTitle}>Demandas e Cuidados</Text>
             <View style={styles.signalChipsWrap}>
-              {(['DR', 'CP', 'SS'] as BedSignal[]).map((signal) => {
+              {(['DR', 'UCP', 'SS'] as BedSignal[]).map((signal) => {
                 const selected = draftSignals.includes(signal);
                 return (
                   <Pressable
                     key={signal}
                     accessibilityRole="button"
-                    accessibilityLabel={`Alternar sinalização ${signal}`}
+                    accessibilityLabel={`Alternar sinalização ${signal} - ${getSignalMeaning(signal)}`}
                     style={[styles.signalChip, selected ? styles.signalChipSelected : styles.signalChipDefault]}
                     onPress={() => toggleDraftSignal(signal)}
                   >
