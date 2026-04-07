@@ -6,9 +6,11 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true,
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://setup-hu-app.pages.dev"
       }
     },
     "production": {

@@ -31,6 +31,8 @@ const getAuthEndpoint = (): string => {
   return '';
 };
 
+const isApiBaseUrlConfigured = (): boolean => Boolean(process.env.EXPO_PUBLIC_API_BASE_URL?.trim());
+
 const getMeEndpoint = (): string => {
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (apiBaseUrl) {
@@ -81,14 +83,25 @@ interface MeApiResponse {
 }
 
 export const loginWithEmail = async ({ email, password }: LoginPayload): Promise<string> => {
-  const endpoint = getAuthEndpoint();
-  if (!endpoint) {
+  const authEndpoint = getAuthEndpoint();
+  const meEndpoint = getMeEndpoint();
+
+  console.log('[auth]', {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL ?? '(vazio)',
+    authEndpoint: authEndpoint || '(vazio)',
+    meEndpoint: meEndpoint || '(vazio)',
+  });
+
+  if (!authEndpoint) {
+    if (!isApiBaseUrlConfigured()) {
+      throw new Error('Erro: URL base não configurada no Build');
+    }
     throw new Error(
       'URL da API de autenticacao nao configurada. Defina EXPO_PUBLIC_API_BASE_URL (recomendado) ou EXPO_PUBLIC_AUTH_API_URL.',
     );
   }
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(authEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -122,14 +135,23 @@ export interface SessionInfo {
 }
 
 export const validateToken = async (token: string): Promise<SessionInfo> => {
-  const endpoint = getMeEndpoint();
-  if (!endpoint) {
+  const meEndpoint = getMeEndpoint();
+
+  console.log('[auth/session]', {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL ?? '(vazio)',
+    meEndpoint: meEndpoint || '(vazio)',
+  });
+
+  if (!meEndpoint) {
+    if (!isApiBaseUrlConfigured()) {
+      throw new Error('Erro: URL base não configurada no Build');
+    }
     throw new Error(
       'URL da API de sessao nao configurada. Defina EXPO_PUBLIC_API_BASE_URL (recomendado) ou EXPO_PUBLIC_ME_API_URL.',
     );
   }
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(meEndpoint, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,

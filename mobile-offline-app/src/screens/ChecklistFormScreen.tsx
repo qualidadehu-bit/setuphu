@@ -70,8 +70,8 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
       Alert.alert(
         'Sucesso',
         isOnline
-          ? 'Formulario salvo e sincronização disparada.'
-          : 'Formulario salvo offline e adicionado a fila.',
+          ? 'Formulário salvo e sincronização disparada.'
+          : 'Formulário salvo offline e adicionado à fila.',
       );
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : String(error));
@@ -145,7 +145,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Checklist de Qualidade</Text>
-        <Text style={styles.subtitle}>Coleta offline-first com sincronização automatica</Text>
+        <Text style={styles.subtitle}>Coleta offline-first com sincronização automática</Text>
         {onLogout ? (
           <View style={styles.logoutButton}>
             <Button title="Sair" color="#475569" onPress={onLogout} />
@@ -185,6 +185,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`Sinalizações do Leito ${bed.id}`}
+                          accessibilityHint="Abre o painel para marcar complexidade e riscos do paciente"
                           style={styles.menuItem}
                           onPress={() => openSignalModal(bed.id)}
                         >
@@ -226,12 +227,12 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
           <Text style={styles.label}>Nome do formulário</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ex: Inspecao turno manha"
+            placeholder="Ex: Inspeção turno manhã"
             value={name}
             onChangeText={setName}
           />
 
-          <Text style={styles.label}>Observacao</Text>
+          <Text style={styles.label}>Observação</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
             placeholder="Descreva pontos relevantes"
@@ -293,7 +294,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
             <Text style={styles.modalTitle}>Sinalizações do Leito {signalModalBedId}</Text>
             <Text style={styles.modalText}>Selecione uma ou mais categorias de risco/perfil:</Text>
 
-            <Text style={styles.signalGroupTitle}>Grupo A - Perfil/Complexidade</Text>
+            <Text style={styles.signalGroupTitle}>Complexidade</Text>
             <View style={styles.signalChipsWrap}>
               {(['PR', 'MR', 'CR'] as BedSignal[]).map((signal) => {
                 const selected = draftSignals.includes(signal);
@@ -318,7 +319,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
               })}
             </View>
 
-            <Text style={styles.signalGroupTitle}>Grupo B - Riscos/Sinalizações</Text>
+            <Text style={styles.signalGroupTitle}>Riscos</Text>
             <View style={styles.signalChipsWrap}>
               {(['DR', 'CP', 'SS'] as BedSignal[]).map((signal) => {
                 const selected = draftSignals.includes(signal);
@@ -460,7 +461,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   signalTagText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
   },
   signalChipDefault: {
     borderColor: '#d1d5db',
-    backgroundColor: 'transparent',
+    backgroundColor: '#fffdfb',
   },
   signalChipSelected: {
     borderColor: '#0f766e',
