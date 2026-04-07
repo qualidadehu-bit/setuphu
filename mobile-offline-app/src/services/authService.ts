@@ -12,14 +12,14 @@ const getOriginFromUrl = (value: string): string => {
 };
 
 const getAuthEndpoint = (): string => {
-  const directAuthUrl = process.env.EXPO_PUBLIC_AUTH_API_URL;
-  if (directAuthUrl) {
-    return directAuthUrl;
-  }
-
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (apiBaseUrl) {
     return `${sanitizeBaseUrl(apiBaseUrl)}/api/auth`;
+  }
+
+  const directAuthUrl = process.env.EXPO_PUBLIC_AUTH_API_URL;
+  if (directAuthUrl) {
+    return directAuthUrl;
   }
 
   const syncUrl = process.env.EXPO_PUBLIC_SYNC_API_URL;
@@ -32,14 +32,14 @@ const getAuthEndpoint = (): string => {
 };
 
 const getMeEndpoint = (): string => {
-  const directMeUrl = process.env.EXPO_PUBLIC_ME_API_URL;
-  if (directMeUrl) {
-    return directMeUrl;
-  }
-
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (apiBaseUrl) {
     return `${sanitizeBaseUrl(apiBaseUrl)}/api/me`;
+  }
+
+  const directMeUrl = process.env.EXPO_PUBLIC_ME_API_URL;
+  if (directMeUrl) {
+    return directMeUrl;
   }
 
   const authUrl = process.env.EXPO_PUBLIC_AUTH_API_URL;
@@ -84,7 +84,7 @@ export const loginWithEmail = async ({ email, password }: LoginPayload): Promise
   const endpoint = getAuthEndpoint();
   if (!endpoint) {
     throw new Error(
-      'URL da API de autenticacao nao configurada. Defina EXPO_PUBLIC_AUTH_API_URL ou EXPO_PUBLIC_API_BASE_URL.',
+      'URL da API de autenticacao nao configurada. Defina EXPO_PUBLIC_API_BASE_URL (recomendado) ou EXPO_PUBLIC_AUTH_API_URL.',
     );
   }
 
@@ -125,7 +125,7 @@ export const validateToken = async (token: string): Promise<SessionInfo> => {
   const endpoint = getMeEndpoint();
   if (!endpoint) {
     throw new Error(
-      'URL da API de sessao nao configurada. Defina EXPO_PUBLIC_ME_API_URL ou EXPO_PUBLIC_API_BASE_URL.',
+      'URL da API de sessao nao configurada. Defina EXPO_PUBLIC_API_BASE_URL (recomendado) ou EXPO_PUBLIC_ME_API_URL.',
     );
   }
 
