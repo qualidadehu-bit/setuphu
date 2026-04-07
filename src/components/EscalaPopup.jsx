@@ -10,10 +10,9 @@ const TURNOS = [
 
 const CAT_COLORS = {
   escriturario: 'bg-blue-100 text-blue-700',
-  maqueiro: 'bg-orange-100 text-orange-700',
   higiene: 'bg-green-100 text-green-700',
 };
-const CAT_LABELS = { escriturario: 'Escriturário', maqueiro: 'Maqueiro', higiene: 'Higiene' };
+const CAT_LABELS = { escriturario: 'Escriturário', higiene: 'Higiene' };
 
 function getInitials(nome) {
   if (!nome) return '??';
@@ -130,7 +129,7 @@ export default function EscalaPopup({ data, onClose, membros }) {
           ) : (
             TURNOS.map(turno => {
               const turnoEscalas = escalas.filter(e => e.turno === turno.key);
-              const cats = ['maqueiro', 'higiene', 'escriturario'];
+              const cats = ['higiene', 'escriturario'];
 
               return (
                 <div key={turno.key} className="border border-gray-100 rounded-2xl overflow-hidden">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { apiClient } from '@/api/apiClient';
-import { notificarMaqueiro, concluirNotificacoesDoLeito } from '../lib/notificacao-sistema';
+import { concluirNotificacoesDoLeito } from '../lib/notificacao-sistema';
 import MemberHeader from '../components/MemberHeader';
 import ConfirmPopup from '../components/ConfirmPopup';
 import { STATUS_CONFIG } from '../lib/leito-config';
@@ -75,9 +75,6 @@ export default function Higiene() {
       tipo, responsavel_nome: nome, responsavel_categoria: 'higiene', timestamp: now,
     });
     await apiClient.entities.Leito.update(leito.id, { status: novoStatus, ultimo_evento_at: now });
-    if (tipo === 'fim_higiene') {
-      await notificarMaqueiro(leito.numero, leito.unidade, leito.quarto);
-    }
     
     // Auto-conclui as notificações pendentes para este leito destinadas à equipe de higiene
     await concluirNotificacoesDoLeito(leito.numero, 'higiene');
@@ -101,7 +98,9 @@ export default function Higiene() {
   const total      = leitosFiltrados.length;
   const emProcesso = aguardando.length + emHigiene.length;
   const pct = total > 0 ? Math.round((emProcesso / total) * 100) : 0;
-  const monitoramento = leitosFiltrados.filter(l => ['aguardando_higiene', 'em_higiene'].includes(l.status));
+  const monitoramento = leitosFiltrados.filter(l =>
+    ['aguardando_higiene', 'em_higiene', 'livre', 'em_transporte', 'aguardando_paciente'].includes(l.status),
+  );
 
   const sortedMonitoramento = [...monitoramento].sort((a, b) => {
     const getNumericValue = (str) => {
@@ -281,6 +280,27 @@ export default function Higiene() {
                           </button>
                         </div>
                       )}
+
+                      {l.status === 'livre' && (
+                        <button onClick={() => setPopup({ leito: l, tipo: 'inicio_hotelaria' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-cyan-600 hover:bg-cyan-700 transition-all shadow-sm">
+                          Iniciar Hotelaria
+                        </button>
+                      )}
+
+                      {l.status === 'em_transporte' && (
+                        <button onClick={() => setPopup({ leito: l, tipo: 'fim_hotelaria' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm">
+                          Finalizar Hotelaria
+                        </button>
+                      )}
+
+                      {l.status === 'aguardando_paciente' && (
+                        <button onClick={() => setPopup({ leito: l, tipo: 'entrada' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm">
+                          Conf. Entrada
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -296,21 +316,33 @@ export default function Higiene() {
         title={
           popup?.tipo === 'iniciar' ? 'Iniciar Higienização' :
           popup?.tipo === 'etapa' ? 'Concluir Etapa' :
+          popup?.tipo === 'inicio_hotelaria' ? 'Iniciar Hotelaria' :
+          popup?.tipo === 'fim_hotelaria' ? 'Finalizar Hotelaria' :
+          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           'Finalizar Higienização'
         }
         message={
           popup?.tipo === 'iniciar' ? `Iniciar higienização do Leito ${popup?.leito?.numero}?` :
           popup?.tipo === 'etapa' ? `Confirmar conclusão de etapa no Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'inicio_hotelaria' ? `Iniciar hotelaria do Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'fim_hotelaria' ? `Finalizar hotelaria do Leito ${popup?.leito?.numero}?` :
+          popup?.tipo === 'entrada' ? `Confirmar chegada do paciente ao Leito ${popup?.leito?.numero}?` :
           `Confirmar que o Leito ${popup?.leito?.numero} está pronto para novo paciente?`
         }
         confirmLabel={
           popup?.tipo === 'iniciar' ? 'Iniciar' :
           popup?.tipo === 'etapa' ? 'Concluir Etapa' :
+          popup?.tipo === 'inicio_hotelaria' ? 'Iniciar' :
+          popup?.tipo === 'fim_hotelaria' ? 'Finalizar' :
+          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           'Finalizar'
         }
         onConfirm={() => {
           if (popup.tipo === 'iniciar') registrarEvento(popup.leito, 'inicio_higiene', 'em_higiene');
           else if (popup.tipo === 'etapa') registrarEvento(popup.leito, 'etapa_higiene', 'em_higiene');
+          else if (popup.tipo === 'inicio_hotelaria') registrarEvento(popup.leito, 'inicio_hotelaria', 'em_transporte');
+          else if (popup.tipo === 'fim_hotelaria') registrarEvento(popup.leito, 'fim_hotelaria', 'aguardando_paciente');
+          else if (popup.tipo === 'entrada') registrarEvento(popup.leito, 'entrada_paciente', 'ocupado');
           else if (popup.tipo === 'finalizar') registrarEvento(popup.leito, 'fim_higiene', 'livre');
           setPopup(null);
         }}

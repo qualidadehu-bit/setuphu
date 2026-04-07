@@ -21,7 +21,7 @@ interface ChecklistFormScreenProps {
   onLogout?: () => void;
 }
 
-type BedAction = 'alta-medica' | 'chamar-maqueiro';
+type BedAction = 'alta-medica';
 type BedSignal = 'PR' | 'MR' | 'CR' | 'DR' | 'CP' | 'SS';
 
 const BED_CARDS = [
@@ -138,7 +138,7 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
       return `Confirmar alta médica para o Leito ${pendingAction.bedId}?`;
     }
 
-    return `Confirmar a solicitação de maqueiro para o Leito ${pendingAction.bedId}?`;
+    return '';
   }, [pendingAction]);
 
   return (
@@ -198,14 +198,6 @@ export const ChecklistFormScreen = ({ onLogout }: ChecklistFormScreenProps) => {
                           onPress={() => openActionConfirmation(bed.id, 'alta-medica')}
                         >
                           <Text style={styles.menuItemText}>🩺 Alta Médica</Text>
-                        </Pressable>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Chamar maqueiro para o Leito ${bed.id}`}
-                          style={styles.menuItem}
-                          onPress={() => openActionConfirmation(bed.id, 'chamar-maqueiro')}
-                        >
-                          <Text style={styles.menuItemText}>🦽 Chamar Maqueiro</Text>
                         </Pressable>
                       </View>
                     </Pressable>

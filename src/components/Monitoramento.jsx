@@ -18,12 +18,12 @@ const DEFAULT_METAS = {
 const ETAPAS = [
   { key: 'desocupacao', label: 'Desocupação (Alta → Livre)', categoria: 'escriturario', cor: '#3B82F6' },
   { key: 'higiene', label: 'Início Higiene → Término Higiene', categoria: 'higiene', cor: '#12B37A' },
-  { key: 'hotelaria', label: 'Início Hotelaria → Término Hotelaria', categoria: 'maqueiro', cor: '#8B5CF6' },
+  { key: 'hotelaria', label: 'Início Hotelaria → Término Hotelaria', categoria: 'higiene', cor: '#8B5CF6' },
   { key: 'tat', label: 'Giro Total (TAT Macro)', categoria: null, cor: '#183D2A' },
 ];
 
-const CATEGORIA_LABELS = { escriturario: 'Escriturário', higiene: 'Higiene', maqueiro: 'Maqueiro' };
-const CATEGORIA_COLORS = { escriturario: 'bg-blue-100 text-blue-700', higiene: 'bg-green-100 text-green-700', maqueiro: 'bg-orange-100 text-orange-700' };
+const CATEGORIA_LABELS = { escriturario: 'Escriturário', higiene: 'Higiene' };
+const CATEGORIA_COLORS = { escriturario: 'bg-blue-100 text-blue-700', higiene: 'bg-green-100 text-green-700' };
 const METRICS_SCALE = {
   cardPadding: 'p-8',
   title: 'text-sm',
@@ -416,7 +416,7 @@ export default function Monitoramento() {
             quarto: l.quarto,
             minutos: Math.round(minutos),
             meta: metas.hotelaria,
-            categoria: 'maqueiro',
+            categoria: 'higiene',
             cor: 'border-purple-300 bg-purple-50',
             icon: 'purple',
             ultimo_evento: l.ultimo_evento_at,

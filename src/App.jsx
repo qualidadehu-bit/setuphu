@@ -1,12 +1,11 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import Home from './pages/Home';
 import SelecaoMembro from './pages/SelecaoMembro';
 import Escriturario from './pages/Escriturario';
-import Maqueiro from './pages/Maqueiro';
 import Higiene from './pages/Higiene';
 import Gestor from './pages/Gestor';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -48,7 +47,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Home />} />
       <Route path="/membro" element={<SelecaoMembro />} />
       <Route path="/escriturario" element={<Escriturario />} />
-      <Route path="/maqueiro" element={<Maqueiro />} />
+      <Route path="/maqueiro" element={<Navigate to="/membro" replace />} />
       <Route path="/higiene" element={<Higiene />} />
       <Route path="/gestor" element={<Gestor />}>
         <Route index element={<LeitoStatusGrid />} />

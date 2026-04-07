@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { apiClient } from '@/api/apiClient';
-import { notificarHigiene, notificarMaqueiroChamada } from '../lib/notificacao-sistema';
+import { notificarHigiene } from '../lib/notificacao-sistema';
 import MemberHeader from '../components/MemberHeader';
 import ConfirmPopup from '../components/ConfirmPopup';
 import { STATUS_CONFIG } from '../lib/leito-config';
 import { Clock } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMetas, getMetaForStatus, getSlaColor, calcMinutos } from '../lib/sla';
 
@@ -19,7 +18,6 @@ export default function Escriturario() {
   const [filtroDivisao, setFiltroDivisao] = useState('todas');
   const [filtroUnidade, setFiltroUnidade] = useState('todas');
   const nome = sessionStorage.getItem('membro_nome') || 'Escriturário';
-  const { toast } = useToast();
   const location = useLocation();
 
   useEffect(() => {
@@ -71,15 +69,6 @@ export default function Escriturario() {
     if (tipo === 'saida_paciente') {
       await notificarHigiene(leito.numero, leito.unidade, leito.quarto);
     }
-    if (tipo === 'chamada_maqueiro') {
-      await notificarMaqueiroChamada(leito.numero, leito.unidade, leito.quarto);
-      toast({
-        title: "Chamado enviado",
-        description: "O maqueiro foi notificado com sucesso.",
-        variant: "success",
-      });
-    }
-    
     fetchLeitos();
   };
 
@@ -230,20 +219,12 @@ export default function Escriturario() {
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>{cfg.label}</span>
                       
                       {l.status === 'ocupado' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setPopup({ leito: l, tipo: 'chamada_maqueiro' })}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-orange-500 text-orange-500 hover:bg-orange-50 transition-all"
-                          >
-                            Chamar Maq.
-                          </button>
-                          <button
-                            onClick={() => setPopup({ leito: l, tipo: 'alta_medica' })}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-indigo-500 hover:bg-indigo-600 transition-all shadow-sm"
-                          >
-                            Alta Médica
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setPopup({ leito: l, tipo: 'alta_medica' })}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-indigo-500 hover:bg-indigo-600 transition-all shadow-sm"
+                        >
+                          Alta Médica
+                        </button>
                       )}
                       
                       {l.status === 'alta_medica_registrada' && (
@@ -273,28 +254,24 @@ export default function Escriturario() {
       </div>
 
       <ConfirmPopup
-        open={!!popup && popup.leito !== null && ['alta_medica', 'alta_administrativa', 'saida', 'chamada_maqueiro'].includes(popup.tipo)}
+        open={!!popup && popup.leito !== null && ['alta_medica', 'alta_administrativa', 'saida'].includes(popup.tipo)}
         onClose={() => setPopup(null)}
         title={
           popup?.tipo === 'alta_medica' ? 'Registrar Alta Médica' :
-          popup?.tipo === 'alta_administrativa' ? 'Registrar Alta Administrativa' :
-          popup?.tipo === 'chamada_maqueiro' ? 'Chamar Maqueiro' : 'Confirmar Disponibilidade'
+          popup?.tipo === 'alta_administrativa' ? 'Registrar Alta Administrativa' : 'Confirmar Disponibilidade'
         }
         message={
           popup?.tipo === 'alta_medica' ? `Confirmar alta médica do Leito ${popup?.leito?.numero}?` :
           popup?.tipo === 'alta_administrativa' ? `Confirmar alta administrativa do Leito ${popup?.leito?.numero}?` :
-          popup?.tipo === 'chamada_maqueiro' ? `Acionar maqueiro para o Leito ${popup?.leito?.numero}?` :
           `Confirmar saída do paciente e liberar Leito ${popup?.leito?.numero} para higiene?`
         }
         confirmLabel={
           popup?.tipo === 'alta_medica' ? 'Registrar Alta' :
-          popup?.tipo === 'alta_administrativa' ? 'Registrar Alta' :
-          popup?.tipo === 'chamada_maqueiro' ? 'Chamar' : 'Confirmar'
+          popup?.tipo === 'alta_administrativa' ? 'Registrar Alta' : 'Confirmar'
         }
         onConfirm={() => {
           if (popup.tipo === 'alta_medica') registrarEvento(popup.leito, 'alta_medica', 'alta_medica_registrada');
           else if (popup.tipo === 'alta_administrativa') registrarEvento(popup.leito, 'alta_administrativa', 'alta_administrativa_registrada');
-          else if (popup.tipo === 'chamada_maqueiro') registrarEvento(popup.leito, 'chamada_maqueiro', null);
           else registrarEvento(popup.leito, 'saida_paciente', 'aguardando_higiene');
         }}
       />

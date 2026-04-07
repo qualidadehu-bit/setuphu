@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/apiClient';
-import { BedDouble, ArrowLeft, ChevronDown, ChevronUp, Eye, EyeOff, Lock, AlertCircle, UserCheck, Truck, Sparkles } from 'lucide-react';
+import { BedDouble, ArrowLeft, ChevronDown, ChevronUp, Eye, EyeOff, Lock, AlertCircle, UserCheck, Sparkles } from 'lucide-react';
 
 const CATEGORIA_ROUTES = {
   escriturario: '/escriturario',
-  maqueiro: '/maqueiro',
   higiene: '/higiene',
 };
 
 const CATEGORIA_CONFIG = {
   escriturario: { label: 'Escriturário', color: 'bg-blue-500', light: 'bg-blue-50 border-blue-200', badge: 'bg-blue-100 text-blue-700' },
-  maqueiro:     { label: 'Maqueiro',     color: 'bg-orange-500', light: 'bg-orange-50 border-orange-200', badge: 'bg-orange-100 text-orange-700' },
   higiene:      { label: 'Higiene',      color: 'bg-[#12B37A]', light: 'bg-green-50 border-green-200', badge: 'bg-green-100 text-green-700' },
 };
 
@@ -82,11 +80,10 @@ export default function SelecaoMembro() {
     navigate(CATEGORIA_ROUTES[membro.categoria]);
   };
 
-  const categorias = ['escriturario', 'maqueiro', 'higiene'];
+  const categorias = ['escriturario', 'higiene'];
 
   const BGS = {
     escriturario: 'bg-blue-50 group-hover:bg-blue-100',
-    maqueiro: 'bg-orange-50 group-hover:bg-orange-100',
     higiene: 'bg-green-50 group-hover:bg-green-100'
   };
 
@@ -153,7 +150,6 @@ export default function SelecaoMembro() {
                       <div className="flex items-center gap-8">
                         <div className={`${MEMBER_PORTAL_SCALE.categoryIconWrap} flex items-center justify-center transition-colors ${BGS[cat]}`}>
                           {cat === 'escriturario' && <UserCheck size={MEMBER_PORTAL_SCALE.categoryIconSize} className="text-blue-600" />}
-                          {cat === 'maqueiro' && <Truck size={MEMBER_PORTAL_SCALE.categoryIconSize} className="text-orange-600" />}
                           {cat === 'higiene' && <Sparkles size={MEMBER_PORTAL_SCALE.categoryIconSize} className="text-[#12B37A]" />}
                         </div>
                         <div className="text-left">
