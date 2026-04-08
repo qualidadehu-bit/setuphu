@@ -8,6 +8,7 @@ import { STATUS_CONFIG } from '../lib/leito-config';
 import { Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMetas, getMetaForStatus, getSlaColor, calcMinutos } from '../lib/sla';
+import { normalizeBedSignals } from '../lib/bedSignals';
 
 export default function Escriturario() {
   const [leitos, setLeitos] = useState([]);
@@ -47,7 +48,10 @@ export default function Escriturario() {
     }
   }, [leitos.length, location.search]);
 
-  const fetchLeitos = () => apiClient.entities.Leito.filter({ ativo: true }).then(setLeitos);
+  const fetchLeitos = () =>
+    apiClient.entities.Leito
+      .filter({ ativo: true })
+      .then((data) => setLeitos(data.map((leito) => ({ ...leito, sinalizacoes: normalizeBedSignals(leito?.sinalizacoes) }))));
 
   useEffect(() => {
     fetchLeitos();
@@ -63,7 +67,11 @@ export default function Escriturario() {
     });
     
     if (novoStatus) {
-      await apiClient.entities.Leito.update(leito.id, { status: novoStatus, ultimo_evento_at: now });
+      await apiClient.entities.Leito.update(leito.id, {
+        status: novoStatus,
+        ultimo_evento_at: now,
+        sinalizacoes: normalizeBedSignals(leito?.sinalizacoes),
+      });
     }
     
     if (tipo === 'saida_paciente') {
@@ -214,6 +222,26 @@ export default function Escriturario() {
                           </span>
                         )}
                       </div>
+                      {(l.sinalizacoes || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {(l.sinalizacoes || []).map((signal) => (
+                            <span
+                              key={`${l.id}-${signal}`}
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                signal === 'CR'
+                                  ? 'border-red-300 bg-red-50 text-red-700'
+                                  : signal === 'SS'
+                                    ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
+                                    : signal === 'UCP'
+                                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                      : 'border-slate-300 bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              {signal}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>{cfg.label}</span>

@@ -8,6 +8,7 @@ import { STATUS_CONFIG } from '../lib/leito-config';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock, CheckSquare, AlertTriangle, X } from 'lucide-react';
 import { getMetas, getMetaForStatus, getSlaColor, calcMinutos } from '../lib/sla';
+import { normalizeBedSignals } from '../lib/bedSignals';
 
 const LIMITES_HIGIENE = {
   aguardando_higiene: 15,
@@ -60,7 +61,10 @@ export default function Higiene() {
     setAlertaDismissed(false);
   }, [leitos.length]);
 
-  const fetchLeitos = () => apiClient.entities.Leito.filter({ ativo: true }).then(setLeitos);
+  const fetchLeitos = () =>
+    apiClient.entities.Leito
+      .filter({ ativo: true })
+      .then((data) => setLeitos(data.map((leito) => ({ ...leito, sinalizacoes: normalizeBedSignals(leito?.sinalizacoes) }))));
 
   useEffect(() => {
     fetchLeitos();
@@ -74,7 +78,11 @@ export default function Higiene() {
       leito_id: leito.id, leito_numero: leito.numero,
       tipo, responsavel_nome: nome, responsavel_categoria: 'higiene', timestamp: now,
     });
-    await apiClient.entities.Leito.update(leito.id, { status: novoStatus, ultimo_evento_at: now });
+    await apiClient.entities.Leito.update(leito.id, {
+      status: novoStatus,
+      ultimo_evento_at: now,
+      sinalizacoes: normalizeBedSignals(leito?.sinalizacoes),
+    });
     
     // Auto-conclui as notificações pendentes para este leito destinadas à equipe de higiene
     await concluirNotificacoesDoLeito(leito.numero, 'higiene');
@@ -257,10 +265,29 @@ export default function Higiene() {
                           </span>
                         )}
                       </div>
+                      {(l.sinalizacoes || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {(l.sinalizacoes || []).map((signal) => (
+                            <span
+                              key={`${l.id}-${signal}`}
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                signal === 'CR'
+                                  ? 'border-red-300 bg-red-50 text-red-700'
+                                  : signal === 'SS'
+                                    ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
+                                  : signal === 'UCP'
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                    : 'border-slate-300 bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              {signal}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>{cfg.label}</span>
-                      
                       {l.status === 'aguardando_higiene' && (
                         <button onClick={() => setPopup({ leito: l, tipo: 'iniciar' })}
                           className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-yellow-500 hover:bg-yellow-600 transition-all shadow-sm">

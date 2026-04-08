@@ -1,3 +1,5 @@
+# Deploy web oficial: na raiz, `npm run build` gera ./dist (Vite/React).
+# Não publicar mobile-offline-app/dist neste projeto Pages — export Expo Web é fluxo separado (outro comando/artefato).
 name = "setup-hu-app"
 compatibility_date = "2026-04-05"
 pages_build_output_dir = "dist"

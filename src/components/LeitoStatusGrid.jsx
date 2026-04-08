@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { BedDouble, Lock, Unlock, Home, ChevronDown } from 'lucide-react';
 import { STATUS_CONFIG, DEFAULT_STATUS_CONFIG } from '@/lib/leito-config';
+import { normalizeBedSignals } from '@/lib/bedSignals';
 
 const UNITS_SCALE = {
   unitCardPadding: 'p-6',
@@ -172,7 +173,9 @@ export default function LeitoStatusGrid() {
     apiClient.entities.Leito
       .filter({ ativo: true })
       .then((data) => {
-        setLeitos(data);
+        setLeitos(
+          data.map((leito) => ({ ...leito, sinalizacoes: normalizeBedSignals(leito?.sinalizacoes) })),
+        );
         if (!isInitialized.current) {
           const divisoes = [...new Set(data.map(l => l.divisao).filter(Boolean))];
           const initialSelection = {};
@@ -197,12 +200,19 @@ export default function LeitoStatusGrid() {
   }, []);
 
   const handleToggle = async (leito) => {
-    await apiClient.entities.Leito.update(leito.id, { bloqueado: !leito.bloqueado });
+    await apiClient.entities.Leito.update(leito.id, {
+      bloqueado: !leito.bloqueado,
+      sinalizacoes: normalizeBedSignals(leito?.sinalizacoes),
+    });
     fetchLeitos();
   };
 
   const handleChangeStatus = async (leito, novoStatus) => {
-    await apiClient.entities.Leito.update(leito.id, { status: novoStatus, ultimo_evento_at: new Date().toISOString() });
+    await apiClient.entities.Leito.update(leito.id, {
+      status: novoStatus,
+      ultimo_evento_at: new Date().toISOString(),
+      sinalizacoes: normalizeBedSignals(leito?.sinalizacoes),
+    });
     fetchLeitos();
   };
 

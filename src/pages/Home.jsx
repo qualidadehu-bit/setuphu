@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Users } from 'lucide-react';
+import { Download, ShieldCheck, Users } from 'lucide-react';
 
 const HOME_SCALE = {
   heroTitle: 'text-5xl md:text-6xl lg:text-7xl',
@@ -11,6 +11,9 @@ const HOME_SCALE = {
   optionText: 'text-3xl',
   optionIconSize: 40,
 };
+
+const runtimeImportMeta = /** @type {{env?: {VITE_APK_DOWNLOAD_URL?: string}}} */ (/** @type {any} */ (import.meta));
+const apkDownloadUrl = runtimeImportMeta.env?.VITE_APK_DOWNLOAD_URL?.trim() || '';
 
 export default function Home() {
   const HERO_BG_URL = '/images/hu-entrada.png';
@@ -63,6 +66,24 @@ export default function Home() {
               <span className={`${HOME_SCALE.optionText} font-bold text-gray-800`}>Administrativo</span>
             </div>
           </Link>
+
+          {apkDownloadUrl ? (
+            <a
+              href={apkDownloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <div
+                className={`flex items-center bg-[#f0fdf4] border border-emerald-200/80 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group ${HOME_SCALE.optionCard}`}
+              >
+                <div className={`${HOME_SCALE.optionIconWrap} bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors`}>
+                  <Download size={HOME_SCALE.optionIconSize} className="text-emerald-700" />
+                </div>
+                <span className={`${HOME_SCALE.optionText} font-bold text-emerald-900`}>Baixar o app (APK)</span>
+              </div>
+            </a>
+          ) : null}
         </div>
         
         <p className="text-gray-400 text-xs mt-16 text-center">Sistema de Gestão Hospitalar v1.0</p>

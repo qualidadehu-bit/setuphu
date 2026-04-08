@@ -3,15 +3,20 @@ import { apiClient } from '@/api/apiClient';
 import { Plus, Pencil, Trash2, BedDouble, X, Save, Download } from 'lucide-react';
 import { gerarTodosLeitos } from '../utils/estrutura';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ALLOWED_BED_SIGNALS, getBedSignalMeaning, normalizeBedSignals } from '../lib/bedSignals';
 
 const STATUS_LABELS = {
   ocupado: 'Ocupado', alta_registrada: 'Alta Registrada', aguardando_higiene: 'Ag. Higiene',
   em_higiene: 'Em Higiene', livre: 'Livre', aguardando_paciente: 'Ag. Paciente',
 };
 
-const EMPTY = { numero: '', divisao: '', unidade: '', quarto: '', status: 'ocupado', ativo: true };
+const EMPTY = { numero: '', divisao: '', unidade: '', quarto: '', status: 'ocupado', ativo: true, sinalizacoes: [] };
 
 export default function GestorLeitos() {
+  const gestorAutenticado = sessionStorage.getItem('gestor_autenticado') === 'true';
+  const memberCategory = (sessionStorage.getItem('membro_categoria') || '').trim().toLowerCase();
+  const canManageSignals =
+    gestorAutenticado || memberCategory === 'gestor' || memberCategory === 'admin';
   const [leitos, setLeitos] = useState([]);
   const [filtroDivisao, setFiltroDivisao] = useState('todas');
   const [filtroUnidade, setFiltroUnidade] = useState('todas');
@@ -29,7 +34,7 @@ export default function GestorLeitos() {
         throw new Error(apiClient.meta.getConfigurationError());
       }
       const data = await apiClient.entities.Leito.list('-created_date');
-      setLeitos(data);
+      setLeitos(data.map((leito) => ({ ...leito, sinalizacoes: normalizeBedSignals(leito?.sinalizacoes) })));
     } catch (error) {
       console.error(error);
       setLeitos([]);
@@ -67,7 +72,8 @@ export default function GestorLeitos() {
       await apiClient.entities.Leito.update(leito.id, {
         status: newStatus,
         bloqueado: newBloqueado,
-        ultimo_evento_at: new Date().toISOString()
+        sinalizacoes: normalizeBedSignals(leito?.sinalizacoes),
+        ultimo_evento_at: new Date().toISOString(),
       });
       await fetchLeitos();
     } catch (error) {
@@ -88,13 +94,17 @@ export default function GestorLeitos() {
     setSaving(true);
     try {
       if (form.id) {
+        const currentLeito = leitos.find((item) => item.id === form.id);
         await apiClient.entities.Leito.update(form.id, {
           numero: form.numero,
           divisao: form.divisao,
           unidade: form.unidade,
           quarto: form.quarto,
           status: form.status,
-          ativo: form.ativo
+          ativo: form.ativo,
+          sinalizacoes: canManageSignals
+            ? normalizeBedSignals(form.sinalizacoes)
+            : normalizeBedSignals(currentLeito?.sinalizacoes),
         });
       } else {
         const numeros = form.numero.split(',').map(n => n.trim()).filter(n => n);
@@ -107,7 +117,8 @@ export default function GestorLeitos() {
           unidade: form.unidade,
           quarto: form.quarto,
           status: form.status || 'ocupado',
-          ativo: true
+          ativo: true,
+          sinalizacoes: canManageSignals ? normalizeBedSignals(form.sinalizacoes) : [],
         }));
         await apiClient.entities.Leito.bulkCreate(novosLeitos);
       }
@@ -233,6 +244,44 @@ export default function GestorLeitos() {
                 {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
+            <div className="sm:col-span-2 md:col-span-3">
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Sinalizações do Leito</label>
+              <div className="flex flex-wrap gap-2">
+                {ALLOWED_BED_SIGNALS.map((signal) => {
+                  const selected = (form.sinalizacoes || []).includes(signal);
+                  return (
+                    <button
+                      key={signal}
+                      type="button"
+                      title={getBedSignalMeaning(signal)}
+                      onClick={() => {
+                        if (!canManageSignals) return;
+                        setForm((current) => {
+                          const currentSignals = normalizeBedSignals(current.sinalizacoes);
+                          const nextSignals = currentSignals.includes(signal)
+                            ? currentSignals.filter((item) => item !== signal)
+                            : [...currentSignals, signal];
+                          return { ...current, sinalizacoes: nextSignals };
+                        });
+                      }}
+                      disabled={!canManageSignals}
+                      className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                        selected
+                          ? 'bg-[#183D2A] text-white border-[#183D2A]'
+                          : 'bg-[#fffdf8] text-gray-700 border-gray-300 hover:bg-gray-50'
+                      } ${!canManageSignals ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {signal}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-2">
+                {canManageSignals
+                  ? 'Definição exclusiva do Gestor Master. Categorias operacionais apenas visualizam estas tags.'
+                  : 'Visualização apenas. Sinalizações só podem ser alteradas por login de Gestor Master.'}
+              </p>
+            </div>
           </div>
           <div className="flex justify-end gap-3 mt-5">
             <button onClick={() => setForm(null)} className="px-5 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm">Cancelar</button>
@@ -312,11 +361,32 @@ export default function GestorLeitos() {
                                   <div className="flex items-start justify-between mb-2">
                                     <p className="font-black text-gray-800 text-sm">{l.numero}</p>
                                     <div className="flex gap-1 -mr-1 -mt-1">
-                                      <button onClick={() => setForm({ ...l })} disabled={deletingId === l.id || updatingId === l.id} className="text-gray-300 hover:text-[#12B37A] p-1 disabled:opacity-50"><Pencil size={12} /></button>
+                                      <button onClick={() => setForm({ ...l, sinalizacoes: normalizeBedSignals(l?.sinalizacoes) })} disabled={deletingId === l.id || updatingId === l.id} className="text-gray-300 hover:text-[#12B37A] p-1 disabled:opacity-50"><Pencil size={12} /></button>
                                       <button onClick={() => handleDelete(l.id)} disabled={deletingId === l.id || updatingId === l.id} className="text-gray-300 hover:text-red-500 p-1 disabled:opacity-50"><Trash2 size={12} /></button>
                                     </div>
                                   </div>
                                   <div className="flex flex-col gap-1.5 mt-2">
+                                    {(normalizeBedSignals(l.sinalizacoes)).length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {normalizeBedSignals(l.sinalizacoes).map((signal) => (
+                                          <span
+                                            key={`${l.id}-${signal}`}
+                                            title={getBedSignalMeaning(signal)}
+                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                              signal === 'CR'
+                                                ? 'border-red-300 bg-red-50 text-red-700'
+                                                : signal === 'SS'
+                                                  ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
+                                                  : signal === 'UCP'
+                                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                                    : 'border-slate-300 bg-slate-50 text-slate-700'
+                                            }`}
+                                          >
+                                            {signal}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                     <button
                                       onClick={() => handleQuickStatusChange(l, 'livre', false)}
                                       disabled={updatingId === l.id || deletingId === l.id}
