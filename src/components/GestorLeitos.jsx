@@ -1,9 +1,115 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { Plus, Pencil, Trash2, BedDouble, X, Save, Download } from 'lucide-react';
 import { gerarTodosLeitos } from '../utils/estrutura';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ALLOWED_BED_SIGNALS, getBedSignalMeaning, normalizeBedSignals } from '../lib/bedSignals';
+
+function signalTagClass(signal) {
+  if (signal === 'CR') return 'border-red-300 bg-red-50 text-red-700';
+  if (signal === 'SS') return 'border-yellow-300 bg-yellow-50 text-yellow-700';
+  if (signal === 'UCP') return 'border-emerald-300 bg-emerald-50 text-emerald-700';
+  return 'border-slate-300 bg-slate-50 text-slate-700';
+}
+
+function BedSignalsPicker({ value, canEdit, disabled, busy, onChange, variant = 'form' }) {
+  const [open, setOpen] = useState(false);
+  const menuTitleId = useId();
+  const normalized = normalizeBedSignals(value);
+  const isBusy = disabled || busy;
+
+  const triggerLabel =
+    normalized.length === 0
+      ? 'Sinalizações ▾'
+      : normalized.length <= 4
+        ? `Sinalizações · ${normalized.join(', ')} ▾`
+        : `Sinalizações (${normalized.length}) ▾`;
+
+  const triggerClass =
+    variant === 'card'
+      ? 'text-[10px] font-bold px-2 py-1 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 w-full text-left'
+      : 'text-sm font-semibold px-4 py-2.5 rounded-xl border border-gray-200 bg-[#fffdf8] text-gray-800 hover:bg-gray-50';
+
+  if (!canEdit) {
+    if (normalized.length === 0) {
+      return variant === 'form' ? (
+        <p className="text-xs text-gray-500">Nenhuma sinalização ativa.</p>
+      ) : null;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {normalized.map((signal) => (
+          <span
+            key={signal}
+            title={getBedSignalMeaning(signal)}
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${signalTagClass(signal)}`}
+          >
+            {signal}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isBusy}
+          className={`${triggerClass} transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12B37A]/40`}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          {triggerLabel}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-52 p-3"
+        align="start"
+        sideOffset={6}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        aria-label="Sinalizações do leito"
+      >
+        <p id={menuTitleId} className="text-xs font-semibold text-gray-500 mb-2">
+          Marcar sinalizações
+        </p>
+        <ul className="m-0 flex list-none flex-col gap-2 p-0" aria-labelledby={menuTitleId}>
+          {ALLOWED_BED_SIGNALS.map((signal) => {
+            const meaning = getBedSignalMeaning(signal);
+            const checked = normalized.includes(signal);
+            return (
+              <li key={signal}>
+                <label
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-accent/50"
+                  title={meaning}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      const on = v === true;
+                      const next = on
+                        ? [...normalized, signal]
+                        : normalized.filter((s) => s !== signal);
+                      onChange(normalizeBedSignals(next));
+                    }}
+                    disabled={isBusy}
+                    aria-label={`${signal}, ${meaning}`}
+                  />
+                  <span className="text-xs font-bold tabular-nums" title={meaning}>
+                    {signal}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const STATUS_LABELS = {
   ocupado: 'Ocupado', alta_registrada: 'Alta Registrada', aguardando_higiene: 'Ag. Higiene',
@@ -79,6 +185,28 @@ export default function GestorLeitos() {
     } catch (error) {
       console.error(error);
       setFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Falha ao atualizar status do leito.' });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleBedSignalsUpdate = async (leito, nextSignals) => {
+    setUpdatingId(leito.id);
+    setFeedback({ type: '', message: '' });
+    try {
+      await apiClient.entities.Leito.update(leito.id, {
+        status: leito.status,
+        bloqueado: leito.bloqueado,
+        sinalizacoes: normalizeBedSignals(nextSignals),
+        ultimo_evento_at: new Date().toISOString(),
+      });
+      await fetchLeitos();
+    } catch (error) {
+      console.error(error);
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Falha ao atualizar sinalizações do leito.',
+      });
     } finally {
       setUpdatingId(null);
     }
@@ -246,36 +374,13 @@ export default function GestorLeitos() {
             </div>
             <div className="sm:col-span-2 md:col-span-3">
               <label className="block text-xs font-semibold text-gray-600 mb-2">Sinalizações do Leito</label>
-              <div className="flex flex-wrap gap-2">
-                {ALLOWED_BED_SIGNALS.map((signal) => {
-                  const selected = (form.sinalizacoes || []).includes(signal);
-                  return (
-                    <button
-                      key={signal}
-                      type="button"
-                      title={getBedSignalMeaning(signal)}
-                      onClick={() => {
-                        if (!canManageSignals) return;
-                        setForm((current) => {
-                          const currentSignals = normalizeBedSignals(current.sinalizacoes);
-                          const nextSignals = currentSignals.includes(signal)
-                            ? currentSignals.filter((item) => item !== signal)
-                            : [...currentSignals, signal];
-                          return { ...current, sinalizacoes: nextSignals };
-                        });
-                      }}
-                      disabled={!canManageSignals}
-                      className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
-                        selected
-                          ? 'bg-[#183D2A] text-white border-[#183D2A]'
-                          : 'bg-[#fffdf8] text-gray-700 border-gray-300 hover:bg-gray-50'
-                      } ${!canManageSignals ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      {signal}
-                    </button>
-                  );
-                })}
-              </div>
+              <BedSignalsPicker
+                value={form.sinalizacoes}
+                canEdit={canManageSignals}
+                disabled={saving}
+                onChange={(next) => setForm((f) => ({ ...f, sinalizacoes: next }))}
+                variant="form"
+              />
               <p className="text-[11px] text-gray-500 mt-2">
                 {canManageSignals
                   ? 'Definição exclusiva do Gestor Master. Categorias operacionais apenas visualizam estas tags.'
@@ -366,27 +471,14 @@ export default function GestorLeitos() {
                                     </div>
                                   </div>
                                   <div className="flex flex-col gap-1.5 mt-2">
-                                    {(normalizeBedSignals(l.sinalizacoes)).length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {normalizeBedSignals(l.sinalizacoes).map((signal) => (
-                                          <span
-                                            key={`${l.id}-${signal}`}
-                                            title={getBedSignalMeaning(signal)}
-                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                              signal === 'CR'
-                                                ? 'border-red-300 bg-red-50 text-red-700'
-                                                : signal === 'SS'
-                                                  ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
-                                                  : signal === 'UCP'
-                                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                                                    : 'border-slate-300 bg-slate-50 text-slate-700'
-                                            }`}
-                                          >
-                                            {signal}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
+                                    <BedSignalsPicker
+                                      value={l.sinalizacoes}
+                                      canEdit={canManageSignals}
+                                      disabled={deletingId === l.id}
+                                      busy={updatingId === l.id}
+                                      onChange={(next) => handleBedSignalsUpdate(l, next)}
+                                      variant="card"
+                                    />
                                     <button
                                       onClick={() => handleQuickStatusChange(l, 'livre', false)}
                                       disabled={updatingId === l.id || deletingId === l.id}
