@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import { theme } from '../theme';
 
 interface OnlineStatusHeaderProps {
   isOnline: boolean;
@@ -6,56 +8,89 @@ interface OnlineStatusHeaderProps {
   isSyncing: boolean;
 }
 
+const WIDE_BREAKPOINT = 480;
+
 export const OnlineStatusHeader = ({
   isOnline,
   pendingCount,
   isSyncing,
 }: OnlineStatusHeaderProps) => {
+  const { width } = useWindowDimensions();
+  const useColumn = width < WIDE_BREAKPOINT;
+
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, useColumn ? styles.wrapperColumn : styles.wrapperRow]}>
       <View style={[styles.badge, isOnline ? styles.badgeOnline : styles.badgeOffline]}>
         <Text style={styles.badgeText}>{isOnline ? 'Online' : 'Offline'}</Text>
       </View>
-      <Text style={styles.counterText}>Pendentes: {pendingCount}</Text>
-      {isSyncing ? <Text style={styles.syncText}>Sincronizando...</Text> : null}
+      <View style={useColumn ? styles.metaColumn : styles.metaRow}>
+        <Text style={styles.counterText}>Pendentes: {pendingCount}</Text>
+        {isSyncing ? <Text style={styles.syncText}>Sincronizando…</Text> : null}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginTop: 16,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    marginTop: theme.space.md,
+    marginBottom: theme.space.sm,
+    padding: theme.space.sm + 4,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: theme.space.sm,
+  },
+  wrapperRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+  },
+  wrapperColumn: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.sm,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  metaColumn: {
+    flexDirection: 'column',
+    gap: 4,
   },
   badge: {
-    borderRadius: 99,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: theme.space.sm,
+    alignSelf: 'flex-start',
+    minHeight: 36,
+    justifyContent: 'center',
   },
   badgeOnline: {
-    backgroundColor: '#16a34a',
+    backgroundColor: theme.colors.primary,
   },
   badgeOffline: {
-    backgroundColor: '#dc2626',
+    backgroundColor: theme.colors.danger,
   },
   badgeText: {
-    color: '#ffffff',
+    color: theme.colors.surface,
     fontWeight: '700',
+    fontSize: theme.fontSize.bodySmall,
   },
   counterText: {
-    color: '#0f172a',
+    color: theme.colors.text,
     fontWeight: '600',
+    fontSize: theme.fontSize.body,
+    lineHeight: 22,
   },
   syncText: {
-    color: '#0f172a',
+    color: theme.colors.textSecondary,
     fontStyle: 'italic',
-    fontSize: 12,
+    fontSize: theme.fontSize.bodySmall,
+    lineHeight: 20,
   },
 });

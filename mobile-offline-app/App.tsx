@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChecklistFormScreen } from './src/screens/ChecklistFormScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { authTokenKey, validateToken } from './src/services/authService';
+import { theme } from './src/theme';
 
 export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -42,29 +44,33 @@ export default function App() {
     setToken(null);
   };
 
-  if (isBootstrapping) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#0f766e" />
-        </View>
-        <StatusBar style="dark" />
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <>
-      {token ? <ChecklistFormScreen onLogout={handleLogout} /> : <LoginScreen onAuthenticated={handleAuthenticated} />}
-      <StatusBar style="dark" />
-    </>
+    <SafeAreaProvider>
+      {isBootstrapping ? (
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+          <StatusBar style="dark" />
+        </SafeAreaView>
+      ) : (
+        <>
+          {token ? (
+            <ChecklistFormScreen onLogout={handleLogout} />
+          ) : (
+            <LoginScreen onAuthenticated={handleAuthenticated} />
+          )}
+          <StatusBar style="dark" />
+        </>
+      )}
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.bgElevated,
   },
   loader: {
     flex: 1,
