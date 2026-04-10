@@ -18,6 +18,10 @@ Crie um arquivo `.env` (ou configure no provedor de deploy) com:
 - `VITE_GAS_BASE_URL`: URL base do Web App GAS (endpoint `/exec`)
 - `VITE_API_KEY`: chave enviada no header `x-api-key`
 
+## App Android (Expo)
+
+A raiz deste repositório é **apenas** o frontend Vite. Builds **EAS** (`eas build`) devem ser feitos dentro de **`mobile-offline-app`**, por exemplo: `cd mobile-offline-app && eas build --platform android --profile production`. Detalhes em [mobile-offline-app/README.md](mobile-offline-app/README.md).
+
 ## Observações
 
 - O frontend está integrado via HTTP com a API GAS (Google Apps Script).
