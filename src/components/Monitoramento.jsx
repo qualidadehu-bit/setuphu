@@ -275,7 +275,7 @@ function ModalMetas({ metas, onChange, onClose }) {
 }
 
 // ─── Card de métrica ────────────────────────────────────────────────────────
-function MetricCard({ label, value, meta, cor, sub }) {
+function MetricCard({ label, value, meta, cor, sub = null }) {
   const hasMeta = meta !== null && meta !== undefined;
   const status = hasMeta ? getSlaStatus(value, meta) : '';
   const colorClass = hasMeta ? getSlaTextClass(value, meta) : 'text-gray-800';
