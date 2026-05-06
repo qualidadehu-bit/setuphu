@@ -1,4 +1,6 @@
-const CACHE_NAME = 'huuel-shell-v1';
+const CACHE_PREFIX = 'huuel-shell-';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = ['/', '/index.html', '/manifest.json', '/favicon.ico', OFFLINE_URL];
 
@@ -14,7 +16,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
           .map((key) => caches.delete(key)),
       ),
     ),

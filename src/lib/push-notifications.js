@@ -15,6 +15,20 @@ export async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register('/service-worker.js', {
       scope: '/'
     });
+    await registration.update();
+
+    registration.addEventListener('updatefound', () => {
+      const installing = registration.installing;
+      if (!installing) return;
+
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('Nova versão do app disponível; recarregando para atualizar cache.');
+          window.location.reload();
+        }
+      });
+    });
+
     console.log('Service Worker registrado com sucesso');
     return registration;
   } catch (error) {
