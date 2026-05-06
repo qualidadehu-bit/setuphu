@@ -1,3 +1,11 @@
+import {
+  enqueueOfflineRequest,
+  flushOfflineQueue,
+  getOfflineQueueState,
+  initOfflineQueue,
+  subscribeOfflineQueue,
+} from '@/lib/offlineQueue';
+
 const ENTITY_ENDPOINT = {
   Leito: 'leitos',
   EventoLeito: 'eventos',
@@ -144,7 +152,22 @@ const request = async (method, path, body, query) => {
 };
 
 const getRequest = (path, query) => request('GET', path, undefined, query);
-const postRequest = (path, body) => request('POST', path, body);
+const postRequest = async (path, body) => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    await enqueueOfflineRequest({ path, method: 'POST', body });
+    return { queued: true };
+  }
+  try {
+    return await request('POST', path, body);
+  } catch (error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    if (message.includes('failed to fetch') || message.includes('networkerror')) {
+      await enqueueOfflineRequest({ path, method: 'POST', body });
+      return { queued: true };
+    }
+    throw error;
+  }
+};
 
 const isTruthy = (value) => {
   if (typeof value === 'boolean') return value;
@@ -399,5 +422,18 @@ export const apiClient = {
         return null;
       }
     },
+  },
+  offline: {
+    async init() {
+      await initOfflineQueue((item) =>
+        request(item.method || 'POST', item.path, item.body ?? undefined),
+      );
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        await flushOfflineQueue();
+      }
+    },
+    flush: flushOfflineQueue,
+    subscribe: subscribeOfflineQueue,
+    getState: getOfflineQueueState,
   },
 };

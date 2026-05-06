@@ -18,6 +18,7 @@ import DashboardCharts from './components/DashboardCharts';
 import GestorMembros from './components/GestorMembros';
 import GestorNotificacoes from './components/GestorNotificacoes';
 import GestorLeitos from './components/GestorLeitos';
+import OfflineStatusBanner from './components/OfflineStatusBanner';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -74,6 +75,7 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
+        <OfflineStatusBanner />
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>

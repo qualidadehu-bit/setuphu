@@ -29,4 +29,30 @@ A raiz deste repositório é **apenas** o frontend Vite. Builds **EAS** (`eas bu
 - O build de produção gera os arquivos otimizados na pasta `dist/`.
 - Há um exemplo backend em `gas/Code.gs` com rotas de `leitos` compatíveis com o frontend.
 - No Apps Script, configure `SPREADSHEET_ID` e `API_KEY` em Script Properties.
-# setuphu
+
+## Offline (PWA)
+
+- O app registra `service-worker.js` para cache de shell da interface.
+- Em offline, a UI abre a partir do cache (após primeira carga online).
+- Submissoes `POST` sao enfileiradas em IndexedDB quando nao ha rede e reenviadas automaticamente ao reconectar.
+- Banner de status exibe: offline, pendentes e sincronizacao.
+
+## APK Android (Capacitor)
+
+1. Instalar dependencias do wrapper Android:
+   - `npm install @capacitor/core @capacitor/cli @capacitor/android`
+2. Build web:
+   - `npm run build`
+3. Inicializar Capacitor (somente primeira vez):
+   - `npm run cap:init`
+4. Adicionar plataforma Android (somente primeira vez):
+   - `npm run android:add`
+5. Sincronizar build web no projeto Android:
+   - `npm run android:sync`
+6. Abrir Android Studio:
+   - `npm run android:open`
+7. Gerar APK debug via terminal:
+   - `npm run android:apk:debug`
+
+Saida esperada do APK:
+- `android/app/build/outputs/apk/debug/app-debug.apk`

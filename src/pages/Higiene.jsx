@@ -107,7 +107,7 @@ export default function Higiene() {
   const emProcesso = aguardando.length + emHigiene.length;
   const pct = total > 0 ? Math.round((emProcesso / total) * 100) : 0;
   const monitoramento = leitosFiltrados.filter(l =>
-    ['aguardando_higiene', 'em_higiene', 'livre', 'em_transporte', 'aguardando_paciente'].includes(l.status),
+    ['aguardando_higiene', 'em_higiene', 'livre', 'em_transporte'].includes(l.status),
   );
 
   const sortedMonitoramento = [...monitoramento].sort((a, b) => {
@@ -322,12 +322,6 @@ export default function Higiene() {
                         </button>
                       )}
 
-                      {l.status === 'aguardando_paciente' && (
-                        <button onClick={() => setPopup({ leito: l, tipo: 'entrada' })}
-                          className="text-xs font-bold px-3 py-1.5 rounded-xl text-white bg-[#183D2A] hover:bg-[#12B37A] transition-all shadow-sm">
-                          Conf. Entrada
-                        </button>
-                      )}
                     </div>
                   </div>
                 );
@@ -345,7 +339,6 @@ export default function Higiene() {
           popup?.tipo === 'etapa' ? 'Concluir Etapa' :
           popup?.tipo === 'inicio_hotelaria' ? 'Iniciar Hotelaria' :
           popup?.tipo === 'fim_hotelaria' ? 'Finalizar Hotelaria' :
-          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           'Finalizar Higienização'
         }
         message={
@@ -353,7 +346,6 @@ export default function Higiene() {
           popup?.tipo === 'etapa' ? `Confirmar conclusão de etapa no Leito ${popup?.leito?.numero}?` :
           popup?.tipo === 'inicio_hotelaria' ? `Iniciar hotelaria do Leito ${popup?.leito?.numero}?` :
           popup?.tipo === 'fim_hotelaria' ? `Finalizar hotelaria do Leito ${popup?.leito?.numero}?` :
-          popup?.tipo === 'entrada' ? `Confirmar chegada do paciente ao Leito ${popup?.leito?.numero}?` :
           `Confirmar que o Leito ${popup?.leito?.numero} está pronto para novo paciente?`
         }
         confirmLabel={
@@ -361,7 +353,6 @@ export default function Higiene() {
           popup?.tipo === 'etapa' ? 'Concluir Etapa' :
           popup?.tipo === 'inicio_hotelaria' ? 'Iniciar' :
           popup?.tipo === 'fim_hotelaria' ? 'Finalizar' :
-          popup?.tipo === 'entrada' ? 'Confirmar Entrada' :
           'Finalizar'
         }
         onConfirm={() => {
@@ -369,7 +360,6 @@ export default function Higiene() {
           else if (popup.tipo === 'etapa') registrarEvento(popup.leito, 'etapa_higiene', 'em_higiene');
           else if (popup.tipo === 'inicio_hotelaria') registrarEvento(popup.leito, 'inicio_hotelaria', 'em_transporte');
           else if (popup.tipo === 'fim_hotelaria') registrarEvento(popup.leito, 'fim_hotelaria', 'aguardando_paciente');
-          else if (popup.tipo === 'entrada') registrarEvento(popup.leito, 'entrada_paciente', 'ocupado');
           else if (popup.tipo === 'finalizar') registrarEvento(popup.leito, 'fim_higiene', 'livre');
           setPopup(null);
         }}

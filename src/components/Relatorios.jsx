@@ -6,6 +6,8 @@ import {
 import { FileText, Download, TrendingDown, Activity, Bell, Send, Sparkles, UserPlus, TrendingUp } from 'lucide-react';
 import { getMetas } from '@/lib/sla';
 
+const toMs = (value) => new Date(value).getTime();
+
 function calcularMetricas(eventos, leitos, metas) {
   const byLeito = {};
   eventos.forEach(e => {
@@ -18,7 +20,7 @@ function calcularMetricas(eventos, leitos, metas) {
   const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
 
   Object.values(byLeito).forEach(evts => {
-    evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    evts.sort((a, b) => toMs(a.timestamp) - toMs(b.timestamp));
     for (let i = 0; i < evts.length; i++) {
       const e = evts[i];
       if (e.tipo === 'alta_medica') {

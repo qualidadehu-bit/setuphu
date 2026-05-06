@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+/// <reference path="../types/jsx-intrinsic-elements.d.ts" />
+/** @jsxRuntime classic */
+import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { Save, RotateCcw, CheckCircle2, AlertTriangle, Shield, Plus, Trash2, ChevronDown, X, Settings } from 'lucide-react';
 import { DEFAULT_METAS } from '@/lib/sla';
@@ -7,6 +9,11 @@ const DEFAULT_ISOLAMENTOS = [
   { id: 1, label: 'Isolamento de Contato', descricao: 'Protocolo de desinfecção profunda', ativo: true, acrescimo: 20, espera: 0, leitoIds: [] },
   { id: 2, label: 'Isolamento Respiratório', descricao: 'Aguardar renovação do ar (Aerossol)', ativo: false, acrescimo: 40, espera: 30, leitoIds: [] },
 ];
+const ChevronDownIcon = /** @type {any} */ (ChevronDown);
+const SettingsIcon = /** @type {any} */ (Settings);
+const ShieldIcon = /** @type {any} */ (Shield);
+const AlertTriangleIcon = /** @type {any} */ (AlertTriangle);
+const CheckCircle2Icon = /** @type {any} */ (CheckCircle2);
 
 function loadState(key, def) {
   try { return JSON.parse(localStorage.getItem(key) || 'null') || def; }
@@ -15,14 +22,14 @@ function loadState(key, def) {
 
 // Multi-select cascading bed selector
 function LeitosMultiSelector({ leitos, selected = [], onChange }) {
-  const [div, setDiv] = useState('');
+  const [divisaoSelecionada, setDivisaoSelecionada] = useState('');
   const [unidade, setUnidade] = useState('');
   const [quarto, setQuarto] = useState('');
 
   const divisoes = [...new Set(leitos.map(l => l.divisao).filter(Boolean))].sort();
-  const unidades = div ? [...new Set(leitos.filter(l => l.divisao === div).map(l => l.unidade).filter(Boolean))].sort() : [];
-  const quartos = unidade ? [...new Set(leitos.filter(l => l.divisao === div && l.unidade === unidade).map(l => l.quarto).filter(Boolean))].sort() : [];
-  const leitosDoQuarto = quarto ? leitos.filter(l => l.divisao === div && l.unidade === unidade && l.quarto === quarto) : [];
+  const unidades = divisaoSelecionada ? [...new Set(leitos.filter(l => l.divisao === divisaoSelecionada).map(l => l.unidade).filter(Boolean))].sort() : [];
+  const quartos = unidade ? [...new Set(leitos.filter(l => l.divisao === divisaoSelecionada && l.unidade === unidade).map(l => l.quarto).filter(Boolean))].sort() : [];
+  const leitosDoQuarto = quarto ? leitos.filter(l => l.divisao === divisaoSelecionada && l.unidade === unidade && l.quarto === quarto) : [];
 
   const addLeito = (id) => { if (!selected.includes(id)) onChange([...selected, id]); };
   const removeLeito = (id) => onChange(selected.filter(s => s !== id));
@@ -62,21 +69,21 @@ function LeitosMultiSelector({ leitos, selected = [], onChange }) {
       {/* Cascade pickers */}
       <div className="grid grid-cols-3 gap-1.5">
         <div className="relative">
-          <select value={div} onChange={e => { setDiv(e.target.value); setUnidade(''); setQuarto(''); }}
+          <select value={divisaoSelecionada} onChange={e => { setDivisaoSelecionada(e.target.value); setUnidade(''); setQuarto(''); }}
             className="w-full appearance-none border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#12B37A] pr-6 bg-white">
             <option value="">Divisão...</option>
             {divisoes.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
-          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <ChevronDownIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
         <div className="relative">
           <select value={unidade} onChange={e => { setUnidade(e.target.value); setQuarto(''); }}
-            disabled={!div}
+            disabled={!divisaoSelecionada}
             className="w-full appearance-none border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#12B37A] pr-6 bg-white disabled:opacity-50">
             <option value="">Setor...</option>
             {unidades.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
-          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <ChevronDownIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
         <div className="relative">
           <select value={quarto} onChange={e => setQuarto(e.target.value)}
@@ -85,7 +92,7 @@ function LeitosMultiSelector({ leitos, selected = [], onChange }) {
             <option value="">Quarto...</option>
             {quartos.map(q => <option key={q} value={q}>{q}</option>)}
           </select>
-          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <ChevronDownIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -206,7 +213,7 @@ export default function GestorConfiguracoes() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <Settings size={18} className="text-[#12B37A]" />
+              <SettingsIcon size={18} className="text-[#12B37A]" />
               <h3 className="font-black text-gray-800">Ajustes de SLA Personalizados (Metas Globais)</h3>
             </div>
           </div>
@@ -232,7 +239,7 @@ export default function GestorConfiguracoes() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <Shield size={18} className="text-[#12B37A]" />
+              <ShieldIcon size={18} className="text-[#12B37A]" />
               <h3 className="font-black text-gray-800">Metas por Tipo de Isolamento</h3>
             </div>
             <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
@@ -246,7 +253,7 @@ export default function GestorConfiguracoes() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-100 flex-shrink-0">
-                      <AlertTriangle size={16} className="text-orange-500" />
+                      <AlertTriangleIcon size={16} className="text-orange-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <input value={iso.label}
@@ -346,7 +353,7 @@ export default function GestorConfiguracoes() {
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-gray-100 pt-5">
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
-          <CheckCircle2 size={13} className="text-[#12B37A]" />
+          <CheckCircle2Icon size={13} className="text-[#12B37A]" />
           Última atualização: {ultimaAtualizacao}
         </p>
         <div className="flex items-center gap-3">

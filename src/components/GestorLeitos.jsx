@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useId } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { Plus, Pencil, Trash2, BedDouble, X, Save, Download } from 'lucide-react';
@@ -35,7 +36,7 @@ function BedSignalsPicker({ value, canEdit, disabled, busy, onChange, variant = 
   if (!canEdit) {
     if (normalized.length === 0) {
       return variant === 'form' ? (
-        <p className="text-xs text-gray-500">Nenhuma sinalização ativa.</p>
+        <div className="text-xs text-gray-500">Nenhuma sinalização ativa.</div>
       ) : null;
     }
     return (

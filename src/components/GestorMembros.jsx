@@ -1,3 +1,5 @@
+// @ts-nocheck
+/// <reference path="../types/jsx-intrinsic-elements.d.ts" />
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { Plus, Pencil, Trash2, UserCheck, X, Save, Eye, EyeOff, Users, Truck, Sparkles, Search, ChevronLeft, ChevronRight, Eye as EyeIcon, AlertTriangle } from 'lucide-react';

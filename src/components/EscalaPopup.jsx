@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { X, Plus, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';

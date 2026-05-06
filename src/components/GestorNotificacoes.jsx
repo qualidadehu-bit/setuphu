@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { CheckCircle2, Clock, Bell, User, XCircle, X } from 'lucide-react';

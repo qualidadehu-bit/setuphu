@@ -38,6 +38,9 @@ const METRICS_SCALE = {
   summarySub: 'text-sm',
 };
 
+const toMillis = (value) => new Date(value).getTime();
+const diffMinutes = (end, start) => (toMillis(end) - toMillis(start)) / 60000;
+
 function calcMetricas(eventos) {
   const byLeito = {};
   eventos.forEach(e => {
@@ -49,34 +52,34 @@ function calcMetricas(eventos) {
   const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
 
   Object.values(byLeito).forEach(evts => {
-    evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    evts.sort((a, b) => toMillis(a.timestamp) - toMillis(b.timestamp));
     evts.forEach(e => {
       if (e.tipo === 'alta_medica') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (saida) altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        if (saida) altaMedicaSaida.push(diffMinutes(saida.timestamp, e.timestamp));
         const altaAdmin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (altaAdmin) altaMedicaAdmin.push((new Date(altaAdmin.timestamp) - new Date(e.timestamp)) / 60000);
+        if (altaAdmin) altaMedicaAdmin.push(diffMinutes(altaAdmin.timestamp, e.timestamp));
       }
       if (e.tipo === 'alta_administrativa') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (saida) altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        if (saida) altaAdminSaida.push(diffMinutes(saida.timestamp, e.timestamp));
       }
       if (isAltaEvent(e.tipo)) {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (saida) desocupacao.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        if (saida) desocupacao.push(diffMinutes(saida.timestamp, e.timestamp));
         const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (entrada) tat.push((new Date(entrada.timestamp) - new Date(e.timestamp)) / 60000);
+        if (entrada) tat.push(diffMinutes(entrada.timestamp, e.timestamp));
       }
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fim) higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fim) higiene.push(diffMinutes(fim.timestamp, e.timestamp));
       }
       if (e.tipo === 'inicio_hotelaria') {
         const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (fimHotelaria) {
-          hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          hotelaria.push(diffMinutes(fimHotelaria.timestamp, e.timestamp));
           const entrada = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
-          if (entrada) entradaFinal.push((new Date(entrada.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+          if (entrada) entradaFinal.push(diffMinutes(entrada.timestamp, fimHotelaria.timestamp));
         }
       }
       // Fallback legado (sem eventos explícitos de hotelaria).
@@ -84,7 +87,7 @@ function calcMetricas(eventos) {
         const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (!inicioHotelaria) {
           const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-          if (ent) hotelaria.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+          if (ent) hotelaria.push(diffMinutes(ent.timestamp, e.timestamp));
         }
       }
     });
@@ -118,7 +121,7 @@ function calcTendencia(eventos) {
   const isAltaEvent = (tipo) => ['alta', 'alta_medica', 'alta_administrativa'].includes(tipo);
 
   Object.values(byLeito).forEach(evts => {
-    evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    evts.sort((a, b) => toMillis(a.timestamp) - toMillis(b.timestamp));
     evts.forEach(e => {
       const hora = new Date(e.timestamp).getHours();
       const slot = `${String(Math.floor(hora / 2) * 2).padStart(2, '0')}:00`;
@@ -126,35 +129,35 @@ function calcTendencia(eventos) {
       const h = horas[slot];
       if (e.tipo === 'alta_medica') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (saida) h.altaMedicaSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        if (saida) h.altaMedicaSaida.push(diffMinutes(saida.timestamp, e.timestamp));
         const admin = evts.find(x => x.tipo === 'alta_administrativa' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (admin) h.altaMedicaAdmin.push((new Date(admin.timestamp) - new Date(e.timestamp)) / 60000);
+        if (admin) h.altaMedicaAdmin.push(diffMinutes(admin.timestamp, e.timestamp));
       }
       if (e.tipo === 'alta_administrativa') {
         const saida = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (saida) h.altaAdminSaida.push((new Date(saida.timestamp) - new Date(e.timestamp)) / 60000);
+        if (saida) h.altaAdminSaida.push(diffMinutes(saida.timestamp, e.timestamp));
       }
       if (isAltaEvent(e.tipo)) {
         const s = evts.find(x => x.tipo === 'saida_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (s) h.desocupacao.push((new Date(s.timestamp) - new Date(e.timestamp)) / 60000);
+        if (s) h.desocupacao.push(diffMinutes(s.timestamp, e.timestamp));
       }
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fim) h.higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fim) h.higiene.push(diffMinutes(fim.timestamp, e.timestamp));
       }
       if (e.tipo === 'inicio_hotelaria') {
         const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (fimHotelaria) {
-          h.hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          h.hotelaria.push(diffMinutes(fimHotelaria.timestamp, e.timestamp));
           const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
-          if (ent) h.entradaFinal.push((new Date(ent.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+          if (ent) h.entradaFinal.push(diffMinutes(ent.timestamp, fimHotelaria.timestamp));
         }
       }
       if (e.tipo === 'fim_higiene') {
         const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (!inicioHotelaria) {
           const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-          if (ent) h.hotelaria.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+          if (ent) h.hotelaria.push(diffMinutes(ent.timestamp, e.timestamp));
         }
       }
     });
@@ -188,30 +191,30 @@ function calcUnidadePerf(eventos, leitos) {
     const leito = leitos.find(l => l.id === lid);
     if (!leito?.unidade || !unidades[leito.unidade]) return;
     const u = unidades[leito.unidade];
-    evts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    evts.sort((a, b) => toMillis(a.timestamp) - toMillis(b.timestamp));
     evts.forEach(e => {
       if (e.tipo === 'inicio_higiene') {
         const fim = evts.find(x => x.tipo === 'fim_higiene' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (fim) u.higiene.push((new Date(fim.timestamp) - new Date(e.timestamp)) / 60000);
+        if (fim) u.higiene.push(diffMinutes(fim.timestamp, e.timestamp));
       }
       if (e.tipo === 'inicio_hotelaria') {
         const fimHotelaria = evts.find(x => x.tipo === 'fim_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (fimHotelaria) {
-          u.hotelaria.push((new Date(fimHotelaria.timestamp) - new Date(e.timestamp)) / 60000);
+          u.hotelaria.push(diffMinutes(fimHotelaria.timestamp, e.timestamp));
           const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(fimHotelaria.timestamp));
-          if (ent) u.entradaFinal.push((new Date(ent.timestamp) - new Date(fimHotelaria.timestamp)) / 60000);
+          if (ent) u.entradaFinal.push(diffMinutes(ent.timestamp, fimHotelaria.timestamp));
         }
       }
       if (e.tipo === 'fim_higiene') {
         const inicioHotelaria = evts.find(x => x.tipo === 'inicio_hotelaria' && new Date(x.timestamp) > new Date(e.timestamp));
         if (!inicioHotelaria) {
           const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-          if (ent) u.hotelaria.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+          if (ent) u.hotelaria.push(diffMinutes(ent.timestamp, e.timestamp));
         }
       }
       if (isAltaEvent(e.tipo)) {
         const ent = evts.find(x => x.tipo === 'entrada_paciente' && new Date(x.timestamp) > new Date(e.timestamp));
-        if (ent) u.tat.push((new Date(ent.timestamp) - new Date(e.timestamp)) / 60000);
+        if (ent) u.tat.push(diffMinutes(ent.timestamp, e.timestamp));
       }
     });
   });
@@ -383,7 +386,7 @@ export default function Monitoramento() {
 
     // Leitos em higiene acima da meta do indicador de higiene.
     leitos.filter(l => l.status === 'em_higiene' && l.ultimo_evento_at).forEach(l => {
-      const minutos = (now - new Date(l.ultimo_evento_at)) / 60000;
+      const minutos = diffMinutes(now, l.ultimo_evento_at);
       if (minutos > metas.higiene) {
         if (!dispensados.includes(`hg-${l.id}_${l.ultimo_evento_at}`)) {
           novosAlertas.push({
@@ -405,7 +408,7 @@ export default function Monitoramento() {
 
     // Leitos em hotelaria (ou legado livre aguardando entrada) acima da meta.
     leitos.filter(l => (l.status === 'em_transporte' || l.status === 'livre') && l.ultimo_evento_at).forEach(l => {
-      const minutos = (now - new Date(l.ultimo_evento_at)) / 60000;
+      const minutos = diffMinutes(now, l.ultimo_evento_at);
       if (minutos > metas.hotelaria) {
         if (!dispensados.includes(`ht-${l.id}_${l.ultimo_evento_at}`)) {
           novosAlertas.push({

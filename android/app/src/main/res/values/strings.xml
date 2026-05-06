@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Setup HU</string>
+    <string name="title_activity_main">Setup HU</string>
+    <string name="package_name">com.qualidadehu.setuphu</string>
+    <string name="custom_url_scheme">com.qualidadehu.setuphu</string>
+</resources>
